@@ -4,21 +4,43 @@ import { useMemo } from 'react'
 import { AgentView } from '@/framework/ui/AgentView'
 import { languageComponentRegistry } from '@/lang-app/tools/registry'
 import { LanguageMemoryStore } from '@/lang-app/memory/store'
+import { createClient } from '@/lib/supabase/client'
+import { lsGet, lsSet } from '@/framework/memory/localStorage'
+import type { LanguageMemoryData } from '@/lang-app/memory/types'
+
+interface PersistedConversation {
+  piMessages: unknown[]
+}
 
 interface Props {
   language: string
   languageName: string
+  initialMessages: unknown[]
+  initialMemory: LanguageMemoryData | null
 }
 
-export function LearnClient({ language, languageName }: Props) {
-  // Stable memory store instance for this language session
-  const memoryStore = useMemo(() => new LanguageMemoryStore(language), [language])
+export function LearnClient({ language, languageName, initialMessages, initialMemory }: Props) {
+  const persistKey = `fluid_conversation_${language}`
+
+  const memoryStore = useMemo(
+    () => new LanguageMemoryStore(language, initialMemory ?? undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [language],
+  )
+
+  // Seed localStorage from server data if the device has no local history
+  useMemo(() => {
+    if (initialMessages.length > 0 && !lsGet<PersistedConversation>(persistKey)) {
+      lsSet(persistKey, { piMessages: initialMessages })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const agentConfig = useMemo(
     () => ({
       endpoint: '/api/agent/message',
       toolEndpoint: '/api/agent/tool-result',
-      persistKey: `fluid_conversation_${language}`,
+      persistKey,
       getRequestParams: () => ({
         language,
         languageName,
@@ -31,6 +53,20 @@ export function LearnClient({ language, languageName }: Props) {
         result: unknown,
       ) => {
         memoryStore.recordExerciseResult(toolName, input, result)
+      },
+      onConversationSave: (fullMessages: unknown[]) => {
+        const supabase = createClient()
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (!user) return
+          supabase.from('conversation_history').upsert({
+            user_id: user.id,
+            language,
+            messages: fullMessages,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id,language' }).then(({ error }) => {
+            if (error) console.error('Failed to save conversation:', error.message)
+          })
+        })
       },
       onTurnComplete: (newMessages: unknown[]) => {
         const existingPreferences = memoryStore.getPreferences()
@@ -53,8 +89,22 @@ export function LearnClient({ language, languageName }: Props) {
       },
       onSessionEnd: () => {
         memoryStore.endSession()
+        // Persist final memory state to Supabase
+        const data = memoryStore.getData()
+        if (!data) return
+        const supabase = createClient()
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (!user) return
+          supabase.from('language_memory').upsert({
+            user_id: user.id,
+            language,
+            data,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id,language' })
+        })
       },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [language, languageName, memoryStore],
   )
 

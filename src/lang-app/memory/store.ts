@@ -53,8 +53,16 @@ export class LanguageMemoryStore implements IMemoryStore {
   private sessionExercises = 0
   private sessionCorrect = 0
 
-  constructor(language: string) {
+  constructor(language: string, initialData?: LanguageMemoryData) {
     this.language = language
+    // Seed localStorage from server-fetched data only if nothing is stored locally yet
+    if (initialData && !lsGet<LanguageMemoryData>(storageKey(language))) {
+      lsSet(storageKey(language), initialData)
+    }
+  }
+
+  getData(): LanguageMemoryData | null {
+    return lsGet<LanguageMemoryData>(storageKey(this.language))
   }
 
   getContext(): string | null {

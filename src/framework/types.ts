@@ -43,5 +43,6 @@ export interface AgentConfig {
     result: unknown,
   ) => void
   onTurnComplete?: (newMessages: unknown[]) => void
+  onConversationSave?: (fullMessages: unknown[]) => void
   onSessionEnd?: () => void
 }

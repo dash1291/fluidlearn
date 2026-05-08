@@ -204,6 +204,11 @@ export function useAgent(config: AgentConfig) {
             )
             const key = configRef.current.persistKey
             if (key) lsSet(key, { piMessages: fullMessages } satisfies PersistedState)
+            try {
+              configRef.current.onConversationSave?.(fullMessages)
+            } catch (err) {
+              console.error('onConversationSave error:', err)
+            }
             // Capture follow-up before any callback that might throw
             followUp = pendingUserMessageRef.current
             pendingUserMessageRef.current = null
