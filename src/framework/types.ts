@@ -1,0 +1,47 @@
+// UI display items
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DisplayItem =
+  | { kind: 'user_message'; id: string; text: string }
+  | { kind: 'assistant_text'; id: string; text: string; isStreaming: boolean }
+  | {
+      kind: 'exercise'
+      id: string
+      toolCallId: string
+      toolName: string
+      input: Record<string, unknown>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result?: any
+      submitted: boolean
+    }
+
+// Component registry — maps tool names to React components
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface ExerciseComponentProps<TInput = any, TResult = any> {
+  input: TInput
+  submitted: boolean
+  result?: TResult
+  onSubmit: (result: TResult) => void
+}
+
+export type ExerciseComponent = React.ComponentType<ExerciseComponentProps>
+
+export type ComponentRegistry = Record<string, ExerciseComponent>
+
+// Agent config passed to useAgent
+
+export interface AgentConfig {
+  endpoint: string
+  toolEndpoint: string
+  getRequestParams: () => Record<string, unknown>
+  startTrigger?: string
+  persistKey?: string
+  onExerciseResult?: (
+    toolName: string,
+    input: Record<string, unknown>,
+    result: unknown,
+  ) => void
+  onTurnComplete?: (newMessages: unknown[]) => void
+  onSessionEnd?: () => void
+}
