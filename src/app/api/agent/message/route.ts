@@ -94,7 +94,15 @@ async function runAgent(
       }
     }
     if (event.type === 'agent_end') {
-      send({ type: 'done', messages: event.messages })
+      const msgs = event.messages
+      const last = msgs[msgs.length - 1] as unknown as Record<string, unknown> | undefined
+      // If the last message is our awaiting placeholder, the turn paused for user input.
+      // Strip the placeholder — client will add the real result in the next request.
+      if (last?.role === 'toolResult' && (last?.details as Record<string, unknown>)?.__awaiting) {
+        send({ type: 'paused', messages: msgs.slice(0, -1) })
+      } else {
+        send({ type: 'done', messages: msgs })
+      }
     }
   })
 

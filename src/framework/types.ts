@@ -33,7 +33,6 @@ export type ComponentRegistry = Record<string, ExerciseComponent>
 
 export interface AgentConfig {
   endpoint: string
-  toolEndpoint: string
   getRequestParams: () => Record<string, unknown>
   startTrigger?: string
   persistKey?: string

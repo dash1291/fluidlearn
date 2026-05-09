@@ -39,7 +39,6 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
   const agentConfig = useMemo(
     () => ({
       endpoint: '/api/agent/message',
-      toolEndpoint: '/api/agent/tool-result',
       persistKey,
       getRequestParams: () => ({
         language,

@@ -74,6 +74,10 @@ function buildDisplayItems(messages: PiMessage[], startTrigger?: string): Displa
   return items
 }
 
+function makeSkipResult(item: Extract<DisplayItem, { kind: 'exercise' }>): PiToolResultMessage {
+  return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, details: { skipped: true } }
+}
+
 export function useAgent(config: AgentConfig) {
   const configRef = useRef(config)
   configRef.current = config
@@ -90,21 +94,6 @@ export function useAgent(config: AgentConfig) {
   const streamingTextIdRef = useRef<string | null>(null)
   // Message queued to send after current agent turn completes (already shown in UI)
   const pendingUserMessageRef = useRef<string | null>(null)
-
-  const skipExercise = useCallback((toolCallId: string) => {
-    setDisplayItems(prev =>
-      prev.map(item =>
-        item.kind === 'exercise' && item.toolCallId === toolCallId
-          ? { ...item, submitted: true, result: { skipped: true } }
-          : item,
-      ),
-    )
-    fetch(configRef.current.toolEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ toolCallId, result: { skipped: true } }),
-    }).catch(err => console.error('Skip exercise failed:', err))
-  }, [])
 
   const sendMessage = useCallback(async (text: string, visible: boolean) => {
     if (isStreamingRef.current) return
@@ -129,7 +118,7 @@ export function useAgent(config: AgentConfig) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: piMessagesRef.current,
-          newMessage: text,
+          newMessage: text || undefined,
           ...params,
         }),
       })
@@ -191,12 +180,11 @@ export function useAgent(config: AgentConfig) {
             ])
           }
 
-          if (event.type === 'done') {
-            // agent_end.messages is new messages only — prepend existing history
+          // Agent paused waiting for user input — tool result will come with the next request
+          if (event.type === 'paused') {
             const newMessages = event.messages as PiMessage[]
             const fullMessages = [...piMessagesRef.current, ...newMessages]
             piMessagesRef.current = fullMessages
-            // Finalize streaming text in-place (don't rebuild — display was built incrementally)
             setDisplayItems(prev =>
               prev.map(i =>
                 i.kind === 'assistant_text' && i.isStreaming ? { ...i, isStreaming: false } : i,
@@ -209,7 +197,26 @@ export function useAgent(config: AgentConfig) {
             } catch (err) {
               console.error('onConversationSave error:', err)
             }
-            // Capture follow-up before any callback that might throw
+            followUp = pendingUserMessageRef.current
+            pendingUserMessageRef.current = null
+          }
+
+          if (event.type === 'done') {
+            const newMessages = event.messages as PiMessage[]
+            const fullMessages = [...piMessagesRef.current, ...newMessages]
+            piMessagesRef.current = fullMessages
+            setDisplayItems(prev =>
+              prev.map(i =>
+                i.kind === 'assistant_text' && i.isStreaming ? { ...i, isStreaming: false } : i,
+              ),
+            )
+            const key = configRef.current.persistKey
+            if (key) lsSet(key, { piMessages: fullMessages } satisfies PersistedState)
+            try {
+              configRef.current.onConversationSave?.(fullMessages)
+            } catch (err) {
+              console.error('onConversationSave error:', err)
+            }
             followUp = pendingUserMessageRef.current
             pendingUserMessageRef.current = null
             try {
@@ -229,8 +236,25 @@ export function useAgent(config: AgentConfig) {
     } finally {
       isStreamingRef.current = false
       setIsStreaming(false)
-      // Follow-up message was already shown in the UI (added by sendUserMessage), so visible=false
-      if (followUp) sendMessage(followUp, false)
+      if (followUp) {
+        // Skip any exercises that are still pending (e.g. user typed while agent was streaming)
+        const pending = displayItemsRef.current.filter(
+          (i): i is Extract<DisplayItem, { kind: 'exercise' }> => i.kind === 'exercise' && !i.submitted,
+        )
+        if (pending.length > 0) {
+          for (const item of pending) {
+            piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+          }
+          setDisplayItems(prev =>
+            prev.map(i =>
+              i.kind === 'exercise' && !i.submitted
+                ? { ...i, submitted: true, result: { skipped: true } }
+                : i,
+            ),
+          )
+        }
+        sendMessage(followUp, false)
+      }
     }
   }, [])
 
@@ -260,48 +284,66 @@ export function useAgent(config: AgentConfig) {
 
   const sendUserMessage = useCallback(
     (text: string) => {
-      if (!isStreamingRef.current) {
-        sendMessage(text, true)
+      if (isStreamingRef.current) {
+        // Agent is mid-run (streaming text) — show message and queue it
+        setDisplayItems(prev => [
+          ...prev,
+          { kind: 'user_message', id: `user-${Date.now()}`, text },
+        ])
+        pendingUserMessageRef.current = text
         return
       }
-      // Agent is mid-run — show message immediately and queue it for after the current turn
-      setDisplayItems(prev => [
-        ...prev,
-        { kind: 'user_message', id: `user-${Date.now()}`, text },
-      ])
-      pendingUserMessageRef.current = text
-      // Skip any unsubmitted exercises to unblock the current turn
+
+      // Not streaming — skip any pending exercises by writing results directly to piMessages
       const pending = displayItemsRef.current.filter(
-        (i): i is Extract<DisplayItem, { kind: 'exercise' }> =>
-          i.kind === 'exercise' && !i.submitted,
+        (i): i is Extract<DisplayItem, { kind: 'exercise' }> => i.kind === 'exercise' && !i.submitted,
       )
-      for (const item of pending) skipExercise(item.toolCallId)
+      if (pending.length > 0) {
+        for (const item of pending) {
+          piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+        }
+        setDisplayItems(prev =>
+          prev.map(i =>
+            i.kind === 'exercise' && !i.submitted
+              ? { ...i, submitted: true, result: { skipped: true } }
+              : i,
+          ),
+        )
+      }
+
+      sendMessage(text, true)
     },
-    [sendMessage, skipExercise],
+    [sendMessage],
   )
 
   const submitExerciseResult = useCallback((toolCallId: string, result: unknown) => {
-    setDisplayItems(prev =>
-      prev.map(item =>
-        item.kind === 'exercise' && item.toolCallId === toolCallId
-          ? { ...item, submitted: true, result }
-          : item,
-      ),
-    )
-
     const item = displayItemsRef.current.find(
       i => i.kind === 'exercise' && i.toolCallId === toolCallId,
     )
+
+    setDisplayItems(prev =>
+      prev.map(i =>
+        i.kind === 'exercise' && i.toolCallId === toolCallId
+          ? { ...i, submitted: true, result }
+          : i,
+      ),
+    )
+
     if (item?.kind === 'exercise') {
       configRef.current.onExerciseResult?.(item.toolName, item.input, result)
+      // Append the real tool result to piMessages, then continue the agent turn
+      const toolResultMsg: PiToolResultMessage = {
+        role: 'toolResult',
+        toolCallId,
+        toolName: item.toolName,
+        details: result,
+      }
+      piMessagesRef.current = [...piMessagesRef.current, toolResultMsg]
     }
 
-    fetch(configRef.current.toolEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ toolCallId, result }),
-    }).catch(err => console.error('Tool result POST failed:', err))
-  }, [])
+    // Empty string is falsy — server will call agent.continue() instead of agent.prompt()
+    sendMessage('', false)
+  }, [sendMessage])
 
   return { displayItems, isStreaming, sendUserMessage, submitExerciseResult }
 }

@@ -1,6 +1,5 @@
 import { Type } from '@earendil-works/pi-ai'
 import type { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core'
-import { registerPending } from '@/framework/server/pendingToolResults'
 
 type SendFn = (event: object) => void
 
@@ -9,12 +8,13 @@ function displayed<T>(toolCallId: string, toolName: string, args: T, send: SendF
   return { content: [{ type: 'text', text: 'Displayed to user.' }], details: args }
 }
 
-async function waitForUser<T>(toolCallId: string, toolName: string, args: T, send: SendFn): Promise<AgentToolResult<unknown>> {
+function waitForUser<T>(toolCallId: string, toolName: string, args: T, send: SendFn): AgentToolResult<unknown> {
   send({ type: 'tool_call', toolCallId, toolName, args })
-  const result = await registerPending(toolCallId)
+  // Return immediately and signal Pi to stop — client will submit the real result in the next request
   return {
-    content: [{ type: 'text', text: JSON.stringify(result) }],
-    details: result,
+    content: [{ type: 'text', text: 'Awaiting user input.' }],
+    details: { __awaiting: toolCallId },
+    terminate: true,
   }
 }
 
