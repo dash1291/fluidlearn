@@ -718,6 +718,43 @@ body {
   color: var(--color-text-muted);
 }
 
+/* ---- User menu ---- */
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.user-menu-name {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.user-menu-signout {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.user-menu-signout:hover {
+  background: var(--color-surface);
+}
+
+/* On home page, pin user menu to top-right */
+.home-container > .user-menu {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  margin-left: 0;
+}
+
 /* ---- Learn page header ---- */
 
 .learn-header {

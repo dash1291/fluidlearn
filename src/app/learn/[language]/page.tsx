@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getLanguage } from '@/lang-app/config'
 import { createClient } from '@/lib/supabase/server'
 import { LearnClient } from './LearnClient'
+import { UserMenu } from '@/framework/ui/UserMenu'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
 
 export const dynamic = 'force-dynamic'
@@ -47,6 +48,7 @@ export default async function LearnPage({ params }: Props) {
         <Link href="/" className="back-link">Back</Link>
         <span className="learn-flag">{lang.flag}</span>
         <h1 className="learn-title">{lang.name}</h1>
+        <UserMenu />
       </div>
       <LearnClient
         language={lang.code}

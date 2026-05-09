@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { SUPPORTED_LANGUAGES } from '@/lang-app/config'
+import { UserMenu } from '@/framework/ui/UserMenu'
 
 export default function Home() {
   return (
     <main className="home-container">
+      <UserMenu />
       <div className="home-header">
         <h1 className="home-title">Fluid</h1>
         <p className="home-subtitle">Learn a language with your AI tutor</p>
