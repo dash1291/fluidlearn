@@ -264,20 +264,18 @@ export function useAgent(config: AgentConfig) {
         sendMessage(text, true)
         return
       }
-      // Agent is mid-run — skip any pending exercises and queue the message
+      // Agent is mid-run — show message immediately and queue it for after the current turn
+      setDisplayItems(prev => [
+        ...prev,
+        { kind: 'user_message', id: `user-${Date.now()}`, text },
+      ])
+      pendingUserMessageRef.current = text
+      // Skip any unsubmitted exercises to unblock the current turn
       const pending = displayItemsRef.current.filter(
         (i): i is Extract<DisplayItem, { kind: 'exercise' }> =>
           i.kind === 'exercise' && !i.submitted,
       )
-      if (pending.length > 0) {
-        // Show user message immediately before the agent finishes its current turn
-        setDisplayItems(prev => [
-          ...prev,
-          { kind: 'user_message', id: `user-${Date.now()}`, text },
-        ])
-        pendingUserMessageRef.current = text
-        for (const item of pending) skipExercise(item.toolCallId)
-      }
+      for (const item of pending) skipExercise(item.toolCallId)
     },
     [sendMessage, skipExercise],
   )
