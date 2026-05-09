@@ -78,6 +78,10 @@ function makeSkipResult(item: Extract<DisplayItem, { kind: 'exercise' }>): PiToo
   return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, details: { skipped: true } }
 }
 
+function isResolved(piMessages: PiMessage[], toolCallId: string): boolean {
+  return piMessages.some(m => m.role === 'toolResult' && m.toolCallId === toolCallId)
+}
+
 export function useAgent(config: AgentConfig) {
   const configRef = useRef(config)
   configRef.current = config
@@ -243,7 +247,9 @@ export function useAgent(config: AgentConfig) {
         )
         if (pending.length > 0) {
           for (const item of pending) {
-            piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+            if (!isResolved(piMessagesRef.current, item.toolCallId)) {
+              piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+            }
           }
           setDisplayItems(prev =>
             prev.map(i =>
@@ -294,13 +300,16 @@ export function useAgent(config: AgentConfig) {
         return
       }
 
-      // Not streaming — skip any pending exercises by writing results directly to piMessages
+      // Not streaming — skip any pending exercises by writing results directly to piMessages.
+      // Displayed tools are already resolved in piMessages; only skip waitForUser tools.
       const pending = displayItemsRef.current.filter(
         (i): i is Extract<DisplayItem, { kind: 'exercise' }> => i.kind === 'exercise' && !i.submitted,
       )
       if (pending.length > 0) {
         for (const item of pending) {
-          piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+          if (!isResolved(piMessagesRef.current, item.toolCallId)) {
+            piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+          }
         }
         setDisplayItems(prev =>
           prev.map(i =>
@@ -329,19 +338,20 @@ export function useAgent(config: AgentConfig) {
       ),
     )
 
-    if (item?.kind === 'exercise') {
-      configRef.current.onExerciseResult?.(item.toolName, item.input, result)
-      // Append the real tool result to piMessages, then continue the agent turn
-      const toolResultMsg: PiToolResultMessage = {
-        role: 'toolResult',
-        toolCallId,
-        toolName: item.toolName,
-        details: result,
-      }
-      piMessagesRef.current = [...piMessagesRef.current, toolResultMsg]
-    }
+    if (!item || item.kind !== 'exercise') return
 
-    // Empty string is falsy — server will call agent.continue() instead of agent.prompt()
+    configRef.current.onExerciseResult?.(item.toolName, item.input, result)
+
+    // Displayed tools (show_lesson, show_vocabulary) resolve immediately on the server — their
+    // results are already in piMessages from the paused/done event. Only waitForUser tools need
+    // the client to append the result and trigger a continuation.
+    if (isResolved(piMessagesRef.current, toolCallId)) return
+
+    piMessagesRef.current = [
+      ...piMessagesRef.current,
+      { role: 'toolResult', toolCallId, toolName: item.toolName, details: result },
+    ]
+    // Empty string is falsy — server calls agent.continue() instead of agent.prompt()
     sendMessage('', false)
   }, [sendMessage])
 
