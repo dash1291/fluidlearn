@@ -9,7 +9,7 @@ interface PiTextContent { type: 'text'; text: string }
 interface PiToolCall { type: 'toolCall'; id: string; name: string; arguments: Record<string, unknown> }
 interface PiUserMessage { role: 'user'; content: string | PiTextContent[] }
 interface PiAssistantMessage { role: 'assistant'; content: (PiTextContent | { type: 'thinking' } | PiToolCall)[] }
-interface PiToolResultMessage { role: 'toolResult'; toolCallId: string; toolName: string; details?: unknown }
+interface PiToolResultMessage { role: 'toolResult'; toolCallId: string; toolName: string; content: unknown[]; isError: boolean; timestamp: number; details?: unknown }
 type PiMessage = PiUserMessage | PiAssistantMessage | PiToolResultMessage
 
 interface PersistedState {
@@ -75,7 +75,7 @@ function buildDisplayItems(messages: PiMessage[], startTrigger?: string): Displa
 }
 
 function makeSkipResult(item: Extract<DisplayItem, { kind: 'exercise' }>): PiToolResultMessage {
-  return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, details: { skipped: true } }
+  return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, content: [], isError: false, timestamp: Date.now(), details: { skipped: true } }
 }
 
 function isResolved(piMessages: PiMessage[], toolCallId: string): boolean {
@@ -349,7 +349,7 @@ export function useAgent(config: AgentConfig) {
 
     piMessagesRef.current = [
       ...piMessagesRef.current,
-      { role: 'toolResult', toolCallId, toolName: item.toolName, details: result },
+      { role: 'toolResult', toolCallId, toolName: item.toolName, content: [], isError: false, timestamp: Date.now(), details: result },
     ]
     // Empty string is falsy — server calls agent.continue() instead of agent.prompt()
     sendMessage('', false)
