@@ -95,11 +95,17 @@ async function runAgent(
     }
     if (event.type === 'agent_end') {
       const msgs = event.messages
-      const last = msgs[msgs.length - 1] as unknown as Record<string, unknown> | undefined
-      // If the last message is our awaiting placeholder, the turn paused for user input.
-      // Strip the placeholder — client will add the real result in the next request.
-      if (last?.role === 'toolResult' && (last?.details as Record<string, unknown>)?.__awaiting) {
-        send({ type: 'paused', messages: msgs.slice(0, -1) })
+      // Find the first __awaiting placeholder. When a displayed tool (show_lesson) and an
+      // interactive tool (show_flashcard) are called in the same assistant message, Pi won't
+      // terminate early (not all tools set terminate:true), so the agent runs another LLM turn.
+      // The placeholder ends up somewhere in the middle, not the last message.
+      // Strip the placeholder and everything after it so the client gets a clean paused state.
+      const awaitingIdx = msgs.findIndex(
+        m => (m as unknown as Record<string, unknown>).role === 'toolResult'
+          && ((m as unknown as Record<string, unknown>).details as Record<string, unknown>)?.__awaiting,
+      )
+      if (awaitingIdx !== -1) {
+        send({ type: 'paused', messages: msgs.slice(0, awaitingIdx) })
       } else {
         send({ type: 'done', messages: msgs })
       }
