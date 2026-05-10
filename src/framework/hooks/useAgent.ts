@@ -150,7 +150,6 @@ export function useAgent(config: AgentConfig) {
 
           if (event.type === 'text_delta') {
             const delta = event.delta as string
-            console.log('[useAgent] text_delta, existingId:', streamingTextIdRef.current, 'delta length:', delta.length)
             const existingId = streamingTextIdRef.current
             if (existingId) {
               setDisplayItems(prev =>
@@ -187,7 +186,6 @@ export function useAgent(config: AgentConfig) {
 
           // Agent paused waiting for user input — tool result will come with the next request
           if (event.type === 'paused') {
-            console.log('[useAgent] paused event, newMessages:', (event.messages as PiMessage[]).map(m => ({ role: m.role, toolCallId: (m as any).toolCallId })))
             const newMessages = event.messages as PiMessage[]
             const fullMessages = [...piMessagesRef.current, ...newMessages]
             piMessagesRef.current = fullMessages
@@ -208,7 +206,6 @@ export function useAgent(config: AgentConfig) {
           }
 
           if (event.type === 'done') {
-            console.log('[useAgent] done event, newMessages:', (event.messages as PiMessage[]).map(m => ({ role: m.role, toolCallId: (m as any).toolCallId })))
             const newMessages = event.messages as PiMessage[]
             const fullMessages = [...piMessagesRef.current, ...newMessages]
             piMessagesRef.current = fullMessages
@@ -346,7 +343,6 @@ export function useAgent(config: AgentConfig) {
     configRef.current.onExerciseResult?.(item.toolName, item.input, result)
 
     const resolved = isResolved(piMessagesRef.current, toolCallId)
-    console.log('[useAgent] submitExerciseResult', toolCallId, 'isResolved:', resolved, 'piMessages toolResults:', piMessagesRef.current.filter(m => m.role === 'toolResult').map(m => (m as any).toolCallId))
     if (resolved) return
 
     piMessagesRef.current = [
