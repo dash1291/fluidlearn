@@ -75,7 +75,7 @@ function buildDisplayItems(messages: PiMessage[], startTrigger?: string): Displa
 }
 
 function makeSkipResult(item: Extract<DisplayItem, { kind: 'exercise' }>): PiToolResultMessage {
-  return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, content: [], isError: false, timestamp: Date.now(), details: { skipped: true } }
+  return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, content: [{ type: 'text', text: 'Exercise skipped.' }], isError: false, timestamp: Date.now(), details: { skipped: true } }
 }
 
 function isResolved(piMessages: PiMessage[], toolCallId: string): boolean {
@@ -150,6 +150,7 @@ export function useAgent(config: AgentConfig) {
 
           if (event.type === 'text_delta') {
             const delta = event.delta as string
+            console.log('[useAgent] text_delta, existingId:', streamingTextIdRef.current, 'delta length:', delta.length)
             const existingId = streamingTextIdRef.current
             if (existingId) {
               setDisplayItems(prev =>
@@ -186,6 +187,7 @@ export function useAgent(config: AgentConfig) {
 
           // Agent paused waiting for user input — tool result will come with the next request
           if (event.type === 'paused') {
+            console.log('[useAgent] paused event, newMessages:', (event.messages as PiMessage[]).map(m => ({ role: m.role, toolCallId: (m as any).toolCallId })))
             const newMessages = event.messages as PiMessage[]
             const fullMessages = [...piMessagesRef.current, ...newMessages]
             piMessagesRef.current = fullMessages
@@ -206,6 +208,7 @@ export function useAgent(config: AgentConfig) {
           }
 
           if (event.type === 'done') {
+            console.log('[useAgent] done event, newMessages:', (event.messages as PiMessage[]).map(m => ({ role: m.role, toolCallId: (m as any).toolCallId })))
             const newMessages = event.messages as PiMessage[]
             const fullMessages = [...piMessagesRef.current, ...newMessages]
             piMessagesRef.current = fullMessages
@@ -342,14 +345,13 @@ export function useAgent(config: AgentConfig) {
 
     configRef.current.onExerciseResult?.(item.toolName, item.input, result)
 
-    // Displayed tools (show_lesson, show_vocabulary) resolve immediately on the server — their
-    // results are already in piMessages from the paused/done event. Only waitForUser tools need
-    // the client to append the result and trigger a continuation.
-    if (isResolved(piMessagesRef.current, toolCallId)) return
+    const resolved = isResolved(piMessagesRef.current, toolCallId)
+    console.log('[useAgent] submitExerciseResult', toolCallId, 'isResolved:', resolved, 'piMessages toolResults:', piMessagesRef.current.filter(m => m.role === 'toolResult').map(m => (m as any).toolCallId))
+    if (resolved) return
 
     piMessagesRef.current = [
       ...piMessagesRef.current,
-      { role: 'toolResult', toolCallId, toolName: item.toolName, content: [], isError: false, timestamp: Date.now(), details: result },
+      { role: 'toolResult', toolCallId, toolName: item.toolName, content: [{ type: 'text', text: JSON.stringify(result) }], isError: false, timestamp: Date.now(), details: result },
     ]
     // Empty string is falsy — server calls agent.continue() instead of agent.prompt()
     sendMessage('', false)
