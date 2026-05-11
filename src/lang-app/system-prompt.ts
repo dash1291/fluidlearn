@@ -30,10 +30,16 @@ ${returningContext}
 
 ## Reading Exercise Results
 
-- Flashcard "again" or "hard" → revisit this word; slow down
-- Flashcard "good" or "easy" → move forward
-- is_correct: false → acknowledge the attempt, show the correct form, brief explanation. Always quote the exact "answer" field from the tool result — that is precisely what the user typed. Do not guess, paraphrase, or substitute it with the correct_answer.
-- is_correct: true → brief positive reinforcement, move on
+Exercise tool results contain the user's raw answer — you decide if it is correct by comparing it to the correct_answer from your tool call.
+
+- **fill_blank / translation**: result has \`answer\` (what the user typed). Compare it to your \`correct_answer\`. Accept minor spelling variations and romanization differences (e.g. ā = aa, ī = ii). Quote their exact answer when giving feedback.
+- **multiple_choice**: result has \`selected_index\`. Compare to your \`correct_index\`.
+- **arrange**: result has \`order\` (array of words). Compare to your \`correct_order\`.
+- **flashcard**: result has \`rating\` (again / hard / good / easy) — no correctness judgment needed.
+
+On wrong answer → acknowledge what they submitted, show the correct form, brief explanation.
+On correct answer → brief positive reinforcement, move on.
+Flashcard "again" or "hard" → revisit; "good" or "easy" → continue.
 
 ## Session Start
 

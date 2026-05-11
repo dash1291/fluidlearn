@@ -11,7 +11,6 @@ interface ArrangeInput {
 
 interface ArrangeResult {
   order: string[]
-  is_correct: boolean
 }
 
 export function SentenceArrange({ input, submitted, result, onSubmit }: ExerciseComponentProps<ArrangeInput, ArrangeResult>) {
@@ -30,20 +29,13 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
     setAvailable(prev => [...prev, word])
   }
 
-  const normalize = (s: string) => s.toLowerCase().replace(/[.,!?;:]/g, '').trim()
-
   const handleSubmit = () => {
-    const is_correct =
-      arranged.length === input.correct_order.length &&
-      arranged.every((w, i) => normalize(w) === normalize(input.correct_order[i]))
-    onSubmit({ order: arranged, is_correct })
+    onSubmit({ order: arranged })
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const skipped = !!(result as any)?.skipped
-  const displayWords = submitted && result
-    ? (skipped ? [] : result.is_correct ? arranged : input.correct_order)
-    : arranged
+  const displayWords = submitted ? (skipped ? [] : (result?.order ?? arranged)) : arranged
 
   return (
     <div className="exercise-card">
@@ -61,7 +53,7 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
         {displayWords.map((word, idx) => (
           <button
             key={`${word}-${idx}`}
-            className={submitted ? (result?.is_correct ? 'word-chip-correct' : 'word-chip-wrong') : 'word-chip-placed'}
+            className="word-chip-placed word-chip-disabled"
             onClick={() => removeWord(word, idx)}
             disabled={submitted}
           >
@@ -80,9 +72,6 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
       )}
       {!submitted && (
         <button className="btn-primary" onClick={handleSubmit} disabled={arranged.length === 0}>Check</button>
-      )}
-      {submitted && !skipped && !result?.is_correct && (
-        <p className="correction-text">Correct order: <strong>{input.correct_order.join(' ')}</strong></p>
       )}
     </div>
   )

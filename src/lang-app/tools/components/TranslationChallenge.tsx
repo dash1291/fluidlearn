@@ -12,15 +12,6 @@ interface TranslationInput {
 
 interface TranslationResult {
   answer: string
-  is_correct: boolean
-}
-
-const normalize = (s: string) => s.trim().toLowerCase().normalize('NFC').replace(/[.,!?¿¡]/g, '')
-
-function checkAnswer(answer: string, input: TranslationInput): boolean {
-  const norm = normalize(answer)
-  if (norm === normalize(input.correct_answer)) return true
-  return input.acceptable_answers?.some(a => normalize(a) === norm) ?? false
 }
 
 export function TranslationChallenge({ input, submitted, result, onSubmit }: ExerciseComponentProps<TranslationInput, TranslationResult>) {
@@ -49,17 +40,12 @@ export function TranslationChallenge({ input, submitted, result, onSubmit }: Exe
       ) : skipped ? (
         <div className="translation-result result-skipped">—</div>
       ) : (
-        <div className={`translation-result ${result?.is_correct ? 'result-correct' : 'result-wrong'}`}>
-          {answer}
-        </div>
+        <div className="translation-result result-submitted">{result?.answer ?? answer}</div>
       )}
       {!submitted && (
-        <button className="btn-primary" onClick={() => onSubmit({ answer: answer.trim(), is_correct: checkAnswer(answer, input) })} disabled={!answer.trim()}>
+        <button className="btn-primary" onClick={() => onSubmit({ answer: answer.trim() })} disabled={!answer.trim()}>
           Check
         </button>
-      )}
-      {submitted && !skipped && !result?.is_correct && (
-        <p className="correction-text">Correct: <strong>{input.correct_answer}</strong></p>
       )}
     </div>
   )

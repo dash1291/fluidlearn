@@ -589,6 +589,23 @@ body {
   padding: 2px 4px;
 }
 
+.blank-submitted {
+  color: var(--color-text);
+  border-bottom: 2px solid var(--color-accent);
+  padding: 2px 4px;
+  font-weight: 600;
+}
+
+.result-submitted {
+  color: var(--color-text);
+  border: 1.5px solid var(--color-accent);
+}
+
+.word-chip-disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
 /* ---- Sentence arrange ---- */
 
 .arrange-drop-zone {

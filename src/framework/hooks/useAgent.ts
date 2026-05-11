@@ -83,11 +83,11 @@ function buildResultContent(toolName: string, result: unknown): string {
   switch (toolName) {
     case 'show_fill_blank':
     case 'show_translation':
-      return `What the user submitted: "${r.answer}"\nCorrect: ${r.is_correct}`
+      return `User submitted: "${r.answer}"`
     case 'show_multiple_choice':
-      return `Option index the user selected: ${r.selected_index}\nCorrect: ${r.is_correct}`
+      return `User selected index: ${r.selected_index}`
     case 'show_arrange':
-      return `Word order the user submitted: [${(r.order as string[]).join(', ')}]\nCorrect: ${r.is_correct}`
+      return `User arranged: [${(r.order as string[]).join(', ')}]`
     case 'show_flashcard':
       return `User self-rating: ${r.rating}`
     default:
