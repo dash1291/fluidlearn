@@ -28,9 +28,10 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
     [language],
   )
 
-  // Seed localStorage from server data if the device has no local history
+  // Remote state always wins — overwrite localStorage with Supabase data on load.
+  // If Supabase has no history yet, keep whatever is in localStorage (e.g. pre-login local session).
   useMemo(() => {
-    if (initialMessages.length > 0 && !lsGet<PersistedConversation>(persistKey)) {
+    if (initialMessages.length > 0) {
       lsSet(persistKey, { piMessages: initialMessages })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
