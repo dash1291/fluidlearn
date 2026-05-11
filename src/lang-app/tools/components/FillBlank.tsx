@@ -15,7 +15,7 @@ interface FillBlankResult {
   is_correct: boolean
 }
 
-const normalize = (s: string) => s.trim().toLowerCase()
+const normalize = (s: string) => s.trim().toLowerCase().normalize('NFC')
 
 export function FillBlank({ input, submitted, result, onSubmit }: ExerciseComponentProps<FillBlankInput, FillBlankResult>) {
   const [answer, setAnswer] = useState(result?.answer ?? '')
@@ -26,6 +26,9 @@ export function FillBlank({ input, submitted, result, onSubmit }: ExerciseCompon
     onSubmit({ answer: answer.trim(), is_correct: normalize(answer) === normalize(input.correct_answer) })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const skipped = !!(result as any)?.skipped
+
   return (
     <div className="exercise-card">
       <div className="exercise-card-header">
@@ -34,9 +37,11 @@ export function FillBlank({ input, submitted, result, onSubmit }: ExerciseCompon
       <div className="fill-sentence">
         <span>{parts[0]}</span>
         {submitted ? (
-          <span className={result?.is_correct ? 'blank-correct' : 'blank-wrong'}>
-            {result?.is_correct ? answer : input.correct_answer}
-          </span>
+          skipped
+            ? <span className="blank-skipped">___</span>
+            : <span className={result?.is_correct ? 'blank-correct' : 'blank-wrong'}>
+                {result?.is_correct ? answer : input.correct_answer}
+              </span>
         ) : (
           <input
             className="blank-input"
@@ -55,7 +60,7 @@ export function FillBlank({ input, submitted, result, onSubmit }: ExerciseCompon
       {!submitted && (
         <button className="btn-primary" onClick={handleSubmit} disabled={!answer.trim()}>Check</button>
       )}
-      {submitted && !result?.is_correct && (
+      {submitted && !skipped && !result?.is_correct && (
         <p className="correction-text">Correct answer: <strong>{input.correct_answer}</strong></p>
       )}
     </div>

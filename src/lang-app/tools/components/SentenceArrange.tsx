@@ -39,8 +39,10 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
     onSubmit({ order: arranged, is_correct })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const skipped = !!(result as any)?.skipped
   const displayWords = submitted && result
-    ? (result.is_correct ? arranged : input.correct_order)
+    ? (skipped ? [] : result.is_correct ? arranged : input.correct_order)
     : arranged
 
   return (
@@ -52,6 +54,9 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
       <div className="arrange-drop-zone">
         {displayWords.length === 0 && !submitted && (
           <span className="arrange-placeholder">Tap words below to build the sentence</span>
+        )}
+        {displayWords.length === 0 && submitted && skipped && (
+          <span className="arrange-placeholder" style={{ opacity: 0.5 }}>—</span>
         )}
         {displayWords.map((word, idx) => (
           <button
@@ -76,7 +81,7 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
       {!submitted && (
         <button className="btn-primary" onClick={handleSubmit} disabled={arranged.length === 0}>Check</button>
       )}
-      {submitted && !result?.is_correct && (
+      {submitted && !skipped && !result?.is_correct && (
         <p className="correction-text">Correct order: <strong>{input.correct_order.join(' ')}</strong></p>
       )}
     </div>

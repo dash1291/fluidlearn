@@ -15,7 +15,7 @@ interface TranslationResult {
   is_correct: boolean
 }
 
-const normalize = (s: string) => s.trim().toLowerCase().replace(/[.,!?¿¡]/g, '')
+const normalize = (s: string) => s.trim().toLowerCase().normalize('NFC').replace(/[.,!?¿¡]/g, '')
 
 function checkAnswer(answer: string, input: TranslationInput): boolean {
   const norm = normalize(answer)
@@ -25,6 +25,8 @@ function checkAnswer(answer: string, input: TranslationInput): boolean {
 
 export function TranslationChallenge({ input, submitted, result, onSubmit }: ExerciseComponentProps<TranslationInput, TranslationResult>) {
   const [answer, setAnswer] = useState(result?.answer ?? '')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const skipped = !!(result as any)?.skipped
 
   return (
     <div className="exercise-card">
@@ -44,6 +46,8 @@ export function TranslationChallenge({ input, submitted, result, onSubmit }: Exe
           rows={2}
           autoFocus
         />
+      ) : skipped ? (
+        <div className="translation-result result-skipped">—</div>
       ) : (
         <div className={`translation-result ${result?.is_correct ? 'result-correct' : 'result-wrong'}`}>
           {answer}
@@ -54,7 +58,7 @@ export function TranslationChallenge({ input, submitted, result, onSubmit }: Exe
           Check
         </button>
       )}
-      {submitted && !result?.is_correct && (
+      {submitted && !skipped && !result?.is_correct && (
         <p className="correction-text">Correct: <strong>{input.correct_answer}</strong></p>
       )}
     </div>

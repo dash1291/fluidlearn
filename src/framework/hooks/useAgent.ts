@@ -78,6 +78,23 @@ function makeSkipResult(item: Extract<DisplayItem, { kind: 'exercise' }>): PiToo
   return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, content: [{ type: 'text', text: 'Exercise skipped.' }], isError: false, timestamp: Date.now(), details: { skipped: true } }
 }
 
+function buildResultContent(toolName: string, result: unknown): string {
+  const r = result as Record<string, unknown>
+  switch (toolName) {
+    case 'show_fill_blank':
+    case 'show_translation':
+      return `What the user submitted: "${r.answer}"\nCorrect: ${r.is_correct}`
+    case 'show_multiple_choice':
+      return `Option index the user selected: ${r.selected_index}\nCorrect: ${r.is_correct}`
+    case 'show_arrange':
+      return `Word order the user submitted: [${(r.order as string[]).join(', ')}]\nCorrect: ${r.is_correct}`
+    case 'show_flashcard':
+      return `User self-rating: ${r.rating}`
+    default:
+      return JSON.stringify(result)
+  }
+}
+
 function isResolved(piMessages: PiMessage[], toolCallId: string): boolean {
   return piMessages.some(m => m.role === 'toolResult' && m.toolCallId === toolCallId)
 }
@@ -347,7 +364,7 @@ export function useAgent(config: AgentConfig) {
 
     piMessagesRef.current = [
       ...piMessagesRef.current,
-      { role: 'toolResult', toolCallId, toolName: item.toolName, content: [{ type: 'text', text: JSON.stringify(result) }], isError: false, timestamp: Date.now(), details: result },
+      { role: 'toolResult', toolCallId, toolName: item.toolName, content: [{ type: 'text', text: buildResultContent(item.toolName, result) }], isError: false, timestamp: Date.now(), details: result },
     ]
     // Empty string is falsy — server calls agent.continue() instead of agent.prompt()
     sendMessage('', false)

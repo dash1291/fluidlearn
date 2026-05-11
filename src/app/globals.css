@@ -578,6 +578,17 @@ body {
   border: 1.5px solid var(--color-wrong);
 }
 
+.result-skipped {
+  color: var(--color-text-muted);
+  border: 1.5px solid var(--color-border);
+}
+
+.blank-skipped {
+  color: var(--color-text-muted);
+  border-bottom: 2px solid var(--color-border);
+  padding: 2px 4px;
+}
+
 /* ---- Sentence arrange ---- */
 
 .arrange-drop-zone {

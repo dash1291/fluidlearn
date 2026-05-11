@@ -31,6 +31,8 @@ export function MultipleChoice({
 
   const getOptionClass = (idx: number) => {
     if (!submitted) return selected === idx ? 'option-selected' : 'option-default'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((result as any)?.skipped) return 'option-default option-disabled'
     if (idx === input.correct_index) return 'option-correct'
     if (idx === selected && idx !== input.correct_index) return 'option-wrong'
     return 'option-default option-disabled'
