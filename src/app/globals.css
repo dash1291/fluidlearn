@@ -90,7 +90,44 @@ body {
   font-size: 14px;
   line-height: 1.6;
   color: var(--color-text);
-  white-space: pre-wrap;
+}
+
+/* Markdown styles inside assistant bubbles */
+.bubble-assistant p { margin: 0 0 8px; }
+.bubble-assistant p:last-child { margin-bottom: 0; }
+.bubble-assistant ul, .bubble-assistant ol { margin: 4px 0; padding-left: 18px; }
+.bubble-assistant li { margin: 2px 0; }
+.bubble-assistant code {
+  background: var(--color-surface);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.bubble-assistant pre {
+  background: var(--color-surface);
+  padding: 8px 10px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.bubble-assistant pre code { padding: 0; background: none; }
+.bubble-assistant blockquote {
+  border-left: 3px solid var(--color-border);
+  margin: 6px 0;
+  padding-left: 10px;
+  color: var(--color-text-muted);
+}
+.bubble-assistant a { color: var(--color-accent); text-decoration: none; }
+.bubble-assistant a:hover { text-decoration: underline; }
+.bubble-assistant strong { font-weight: 600; }
+.bubble-assistant h1, .bubble-assistant h2, .bubble-assistant h3, .bubble-assistant h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 10px 0 4px;
+}
+.bubble-assistant h1:first-child, .bubble-assistant h2:first-child, .bubble-assistant h3:first-child, .bubble-assistant h4:first-child {
+  margin-top: 0;
 }
 
 .bubble-thinking {

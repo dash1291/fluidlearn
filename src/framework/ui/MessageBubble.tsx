@@ -1,5 +1,7 @@
 'use client'
 
+import Markdown from 'react-markdown'
+
 interface Props {
   role: 'user' | 'assistant'
   text: string
@@ -12,7 +14,11 @@ export function MessageBubble({ role, text, isStreaming }: Props) {
   return (
     <div className={`message-row ${role === 'user' ? 'message-row-user' : 'message-row-assistant'}`}>
       <div className={role === 'user' ? 'bubble-user' : 'bubble-assistant'}>
-        {text}
+        {role === 'assistant' ? (
+          <Markdown>{text}</Markdown>
+        ) : (
+          text
+        )}
         {isStreaming && <span className="streaming-cursor" />}
       </div>
     </div>
