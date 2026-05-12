@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@/framework/types'
+import { isSkipped } from '@/framework/types'
 
 interface MultipleChoiceInput {
   question: string
@@ -30,8 +31,7 @@ export function MultipleChoice({
 
   const getOptionClass = (idx: number) => {
     if (!submitted) return selected === idx ? 'option-selected' : 'option-default'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((result as any)?.skipped) return 'option-default option-disabled'
+    if (isSkipped(result)) return 'option-default option-disabled'
     if (idx === selected) return 'option-selected option-disabled'
     return 'option-default option-disabled'
   }

@@ -1,6 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
-
-const client = new Anthropic()
+import { getModel, completeSimple } from '@earendil-works/pi-ai'
 
 export async function POST(request: Request) {
   const { newMessages, existingPreferences, languageName } = await request.json()
@@ -37,14 +35,17 @@ Extract any lasting style preferences the learner expressed — things like scri
 
 Return a concise bullet list of ALL current preferences (merging old and new). If nothing changed and there are no current preferences, return an empty string.`
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const model = getModel('anthropic', 'claude-haiku-4-5-20251001')
 
-  const text =
-    response.content[0].type === 'text' ? response.content[0].text.trim() : ''
+  const response = await completeSimple(model, {
+    messages: [{ role: 'user', content: prompt, timestamp: Date.now() }],
+  }, { maxTokens: 200 })
+
+  const text = response.content
+    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .map(b => b.text)
+    .join('')
+    .trim()
 
   return Response.json({ preferences: text || null })
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@/framework/types'
+import { isSkipped } from '@/framework/types'
 
 interface ArrangeInput {
   words: string[]
@@ -33,8 +34,7 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
     onSubmit({ order: arranged })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const skipped = !!(result as any)?.skipped
+  const skipped = isSkipped(result)
   const displayWords = submitted ? (skipped ? [] : (result?.order ?? arranged)) : arranged
 
   return (

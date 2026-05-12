@@ -1,16 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { AgentView } from '@/framework/ui/AgentView'
 import { languageComponentRegistry } from '@/lang-app/tools/registry'
 import { LanguageMemoryStore } from '@/lang-app/memory/store'
 import { createClient } from '@/lib/supabase/client'
-import { lsGet, lsSet } from '@/framework/memory/localStorage'
+import { lsSet } from '@/framework/memory/localStorage'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
-
-interface PersistedConversation {
-  piMessages: unknown[]
-}
 
 interface Props {
   language: string
@@ -30,11 +26,11 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
 
   // Remote state always wins — overwrite localStorage with Supabase data on load.
   // If Supabase has no history yet, keep whatever is in localStorage (e.g. pre-login local session).
-  useMemo(() => {
+  useEffect(() => {
     if (initialMessages.length > 0) {
       lsSet(persistKey, { piMessages: initialMessages })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const agentConfig = useMemo(

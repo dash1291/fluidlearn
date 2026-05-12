@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@/framework/types'
+import { isSkipped } from '@/framework/types'
 
 interface TranslationInput {
   prompt: string
@@ -16,8 +17,7 @@ interface TranslationResult {
 
 export function TranslationChallenge({ input, submitted, result, onSubmit }: ExerciseComponentProps<TranslationInput, TranslationResult>) {
   const [answer, setAnswer] = useState(result?.answer ?? '')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const skipped = !!(result as any)?.skipped
+  const skipped = isSkipped(result)
 
   return (
     <div className="exercise-card">

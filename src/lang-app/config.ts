@@ -1,5 +1,3 @@
-import type { ProviderConfig } from '@/framework/provider'
-
 export interface Language {
   code: string
   name: string
@@ -22,7 +20,9 @@ export function getLanguage(code: string): Language | undefined {
   return SUPPORTED_LANGUAGES.find(l => l.code === code)
 }
 
-export const LLM_CONFIG: ProviderConfig = {
-  provider: (process.env.LLM_PROVIDER ?? 'anthropic') as ProviderConfig['provider'],
+export type ProviderName = 'anthropic' | 'openai'
+
+export const LLM_CONFIG = {
+  provider: (process.env.LLM_PROVIDER ?? 'anthropic') as ProviderName,
   model: process.env.LLM_MODEL ?? 'claude-sonnet-4-6',
 }

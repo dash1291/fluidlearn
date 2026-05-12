@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@/framework/types'
+import { isSkipped } from '@/framework/types'
 
 interface FillBlankInput {
   sentence_template: string
@@ -23,8 +24,7 @@ export function FillBlank({ input, submitted, result, onSubmit }: ExerciseCompon
     onSubmit({ answer: answer.trim() })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const skipped = !!(result as any)?.skipped
+  const skipped = isSkipped(result)
 
   return (
     <div className="exercise-card">

@@ -29,6 +29,10 @@ export type ExerciseComponent = React.ComponentType<ExerciseComponentProps>
 
 export type ComponentRegistry = Record<string, ExerciseComponent>
 
+export function isSkipped(result?: unknown): boolean {
+  return typeof result === 'object' && result !== null && (result as Record<string, unknown>).skipped === true
+}
+
 // Agent config passed to useAgent
 
 export interface AgentConfig {

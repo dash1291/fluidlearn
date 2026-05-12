@@ -78,6 +78,10 @@ function makeSkipResult(item: Extract<DisplayItem, { kind: 'exercise' }>): PiToo
   return { role: 'toolResult', toolCallId: item.toolCallId, toolName: item.toolName, content: [{ type: 'text', text: 'Exercise skipped.' }], isError: false, timestamp: Date.now(), details: { skipped: true } }
 }
 
+function isResolved(piMessages: PiMessage[], toolCallId: string): boolean {
+  return piMessages.some(m => m.role === 'toolResult' && m.toolCallId === toolCallId)
+}
+
 function buildResultContent(toolName: string, result: unknown): string {
   const r = result as Record<string, unknown>
   switch (toolName) {
@@ -93,10 +97,6 @@ function buildResultContent(toolName: string, result: unknown): string {
     default:
       return JSON.stringify(result)
   }
-}
-
-function isResolved(piMessages: PiMessage[], toolCallId: string): boolean {
-  return piMessages.some(m => m.role === 'toolResult' && m.toolCallId === toolCallId)
 }
 
 export function useAgent(config: AgentConfig) {
@@ -115,6 +115,50 @@ export function useAgent(config: AgentConfig) {
   const streamingTextIdRef = useRef<string | null>(null)
   // Message queued to send after current agent turn completes (already shown in UI)
   const pendingUserMessageRef = useRef<string | null>(null)
+
+  function skipPendingExercises() {
+    const pending = displayItemsRef.current.filter(
+      (i): i is Extract<DisplayItem, { kind: 'exercise' }> => i.kind === 'exercise' && !i.submitted,
+    )
+    if (pending.length === 0) return
+
+    for (const item of pending) {
+      if (!isResolved(piMessagesRef.current, item.toolCallId)) {
+        piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
+      }
+    }
+    setDisplayItems(prev =>
+      prev.map(i =>
+        i.kind === 'exercise' && !i.submitted
+          ? { ...i, submitted: true, result: { skipped: true } }
+          : i,
+      ),
+    )
+  }
+
+  function finalizeTurn(newMessages: PiMessage[], withTurnComplete?: boolean) {
+    const fullMessages = [...piMessagesRef.current, ...newMessages]
+    piMessagesRef.current = fullMessages
+    setDisplayItems(prev =>
+      prev.map(i =>
+        i.kind === 'assistant_text' && i.isStreaming ? { ...i, isStreaming: false } : i,
+      ),
+    )
+    const key = configRef.current.persistKey
+    if (key) lsSet(key, { piMessages: fullMessages } satisfies PersistedState)
+    try {
+      configRef.current.onConversationSave?.(fullMessages)
+    } catch (err) {
+      console.error('onConversationSave error:', err)
+    }
+    if (withTurnComplete) {
+      try {
+        configRef.current.onTurnComplete?.(newMessages)
+      } catch (err) {
+        console.error('onTurnComplete error:', err)
+      }
+    }
+  }
 
   const sendMessage = useCallback(async (text: string, visible: boolean) => {
     if (isStreamingRef.current) return
@@ -203,48 +247,15 @@ export function useAgent(config: AgentConfig) {
 
           // Agent paused waiting for user input — tool result will come with the next request
           if (event.type === 'paused') {
-            const newMessages = event.messages as PiMessage[]
-            const fullMessages = [...piMessagesRef.current, ...newMessages]
-            piMessagesRef.current = fullMessages
-            setDisplayItems(prev =>
-              prev.map(i =>
-                i.kind === 'assistant_text' && i.isStreaming ? { ...i, isStreaming: false } : i,
-              ),
-            )
-            const key = configRef.current.persistKey
-            if (key) lsSet(key, { piMessages: fullMessages } satisfies PersistedState)
-            try {
-              configRef.current.onConversationSave?.(fullMessages)
-            } catch (err) {
-              console.error('onConversationSave error:', err)
-            }
+            finalizeTurn(event.messages as PiMessage[])
             followUp = pendingUserMessageRef.current
             pendingUserMessageRef.current = null
           }
 
           if (event.type === 'done') {
-            const newMessages = event.messages as PiMessage[]
-            const fullMessages = [...piMessagesRef.current, ...newMessages]
-            piMessagesRef.current = fullMessages
-            setDisplayItems(prev =>
-              prev.map(i =>
-                i.kind === 'assistant_text' && i.isStreaming ? { ...i, isStreaming: false } : i,
-              ),
-            )
-            const key = configRef.current.persistKey
-            if (key) lsSet(key, { piMessages: fullMessages } satisfies PersistedState)
-            try {
-              configRef.current.onConversationSave?.(fullMessages)
-            } catch (err) {
-              console.error('onConversationSave error:', err)
-            }
+            finalizeTurn(event.messages as PiMessage[], true)
             followUp = pendingUserMessageRef.current
             pendingUserMessageRef.current = null
-            try {
-              configRef.current.onTurnComplete?.(newMessages)
-            } catch (err) {
-              console.error('onTurnComplete error:', err)
-            }
           }
 
           if (event.type === 'error') {
@@ -258,27 +269,11 @@ export function useAgent(config: AgentConfig) {
       isStreamingRef.current = false
       setIsStreaming(false)
       if (followUp) {
-        // Skip any exercises that are still pending (e.g. user typed while agent was streaming)
-        const pending = displayItemsRef.current.filter(
-          (i): i is Extract<DisplayItem, { kind: 'exercise' }> => i.kind === 'exercise' && !i.submitted,
-        )
-        if (pending.length > 0) {
-          for (const item of pending) {
-            if (!isResolved(piMessagesRef.current, item.toolCallId)) {
-              piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
-            }
-          }
-          setDisplayItems(prev =>
-            prev.map(i =>
-              i.kind === 'exercise' && !i.submitted
-                ? { ...i, submitted: true, result: { skipped: true } }
-                : i,
-            ),
-          )
-        }
+        skipPendingExercises()
         sendMessage(followUp, false)
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -318,25 +313,7 @@ export function useAgent(config: AgentConfig) {
       }
 
       // Not streaming — skip any pending exercises by writing results directly to piMessages.
-      // Displayed tools are already resolved in piMessages; only skip waitForUser tools.
-      const pending = displayItemsRef.current.filter(
-        (i): i is Extract<DisplayItem, { kind: 'exercise' }> => i.kind === 'exercise' && !i.submitted,
-      )
-      if (pending.length > 0) {
-        for (const item of pending) {
-          if (!isResolved(piMessagesRef.current, item.toolCallId)) {
-            piMessagesRef.current = [...piMessagesRef.current, makeSkipResult(item)]
-          }
-        }
-        setDisplayItems(prev =>
-          prev.map(i =>
-            i.kind === 'exercise' && !i.submitted
-              ? { ...i, submitted: true, result: { skipped: true } }
-              : i,
-          ),
-        )
-      }
-
+      skipPendingExercises()
       sendMessage(text, true)
     },
     [sendMessage],
