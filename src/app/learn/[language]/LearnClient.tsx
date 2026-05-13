@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo, useEffect, useCallback } from 'react'
-import { AgentView } from '@/framework/ui/AgentView'
+import { AgentView } from '@fluid/ui'
 import { languageComponentRegistry } from '@/lang-app/tools/registry'
 import { LanguageMemoryStore } from '@/lang-app/memory/store'
 import { createClient } from '@/lib/supabase/client'
-import { lsSet } from '@/framework/memory/localStorage'
+import { lsSet } from '@fluid/ui'
 import { StudyTimer } from './StudyTimer'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
 

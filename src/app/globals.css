@@ -1087,6 +1087,31 @@ body {
   color: var(--color-text-muted);
 }
 
+/* App footer */
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+}
+
+.app-footer-text {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.app-footer-link {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.12s;
+}
+
+.app-footer-link:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 @media (max-width: 480px) {
   .bubble-user,
   .bubble-assistant {

@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getLanguage } from '@/lang-app/config'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/client'
 import { LearnClient } from './LearnClient'
 import { StudyTimer } from './StudyTimer'
 import { UserMenu } from '@/app/components/UserMenu'
+import { Footer } from '@/app/components/Footer'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
 
 export const dynamic = 'force-dynamic'
@@ -62,13 +63,16 @@ export default async function LearnPage({ params }: Props) {
         <StudyTimer initialTotalSeconds={initialTotalSeconds} />
         <UserMenu />
       </div>
-      <LearnClient
-        language={lang.code}
-        languageName={lang.name}
-        initialMessages={initialMessages}
-        initialMemory={initialMemory}
-        initialTotalSeconds={initialTotalSeconds}
-      />
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <LearnClient
+          language={lang.code}
+          languageName={lang.name}
+          initialMessages={initialMessages}
+          initialMemory={initialMemory}
+          initialTotalSeconds={initialTotalSeconds}
+        />
+      </div>
+      <Footer />
     </div>
   )
 }

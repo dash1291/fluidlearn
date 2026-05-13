@@ -1,4 +1,4 @@
-import type { ComponentRegistry } from '@/framework/types'
+import type { ComponentRegistry } from '@fluid/ui'
 import { LessonCard } from './components/LessonCard'
 import { VocabularyList } from './components/VocabularyList'
 import { Flashcard } from './components/Flashcard'

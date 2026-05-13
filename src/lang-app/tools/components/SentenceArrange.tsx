@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import type { ExerciseComponentProps } from '@/framework/types'
-import { isSkipped } from '@/framework/types'
+import type { ExerciseComponentProps } from '@fluid/ui'
+import { isSkipped } from '@fluid/ui'
 
 interface ArrangeInput {
   words: string[]

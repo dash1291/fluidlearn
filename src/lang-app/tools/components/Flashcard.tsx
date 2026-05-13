@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { ExerciseComponentProps } from '@/framework/types'
+import type { ExerciseComponentProps } from '@fluid/ui'
 
 interface FlashcardInput {
   front: string

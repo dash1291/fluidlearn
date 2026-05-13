@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { SUPPORTED_LANGUAGES } from '@/lang-app/config'
 import { UserMenu } from './components/UserMenu'
+import { Footer } from './components/Footer'
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
           </Link>
         ))}
       </div>
+      <Footer />
     </main>
   )
 }

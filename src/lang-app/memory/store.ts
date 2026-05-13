@@ -1,5 +1,5 @@
-import type { IMemoryStore } from '@/framework/memory/types'
-import { lsGet, lsSet } from '@/framework/memory/localStorage'
+import type { IMemoryStore } from '@fluid/ui'
+import { lsGet, lsSet } from '@fluid/ui'
 import type { LanguageMemoryData, WordRecord } from './types'
 
 function storageKey(language: string) {

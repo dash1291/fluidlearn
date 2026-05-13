@@ -1,6 +1,6 @@
 'use client'
 
-import type { ExerciseComponentProps } from '@/framework/types'
+import type { ExerciseComponentProps } from '@fluid/ui'
 
 interface VocabularyInput {
   words: Array<{ word: string; translation: string; pronunciation?: string; example?: string }>

@@ -1,4 +1,4 @@
-import { createAgentRoute } from '@/framework/server/createAgentRoute'
+import { createAgentRoute } from '@fluid/ui'
 import { getSystemPrompt } from '@/lang-app/system-prompt'
 import { createLanguageTools } from '@/lang-app/tools/piDefinitions'
 
