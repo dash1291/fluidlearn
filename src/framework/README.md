@@ -1,6 +1,6 @@
 # flUId
 
-A reusable, self-contained **chat application platform** built on top of the Pi agent harness. It turns a streaming LLM conversation engine into a full React/Next.js UI — complete with interactive widgets, pagination, search, and persistence.
+A reusable chat UI framework for LLM-powered applications with interactive widgets. Built on the Pi agent harness, it provides streaming bubbles, reverse pagination, search UI, and localStorage persistence — leaving remote sync, search backends, and domain tools to your app.
 
 ## Philosophy
 
@@ -24,6 +24,128 @@ The LLM doesn't just chat — it can inject interactive widgets into the convers
 ```
 
 The Pi agent harness is a production-grade conversation engine (battle-tested in coding agents) that handles streaming deltas, tool call detection, and turn lifecycle (`prompt` / `continue`). The framework wraps that engine in a Next.js/React layer.
+
+## Getting Started
+
+Here is the smallest possible app you can build with flUId — a chatbot that can show an interactive poll widget.
+
+### Step 1 — Install peer dependencies
+
+```bash
+npm install react react-dom next react-markdown @earendil-works/pi-agent-core @earendil-works/pi-ai
+```
+
+### Step 2 — Create a tool definition
+
+Tools are JSONSchema-described functions the LLM can call. Create `app/tools/pollTool.ts`:
+
+```ts
+import { Type } from '@earendil-works/pi-ai'
+
+export function createPollTool(send: (event: object) => void) {
+  return {
+    name: 'show_poll',
+    label: 'Poll',
+    description: 'Display a poll with options for the user to vote on',
+    parameters: Type.Object({
+      question: Type.String(),
+      options: Type.Array(Type.String(), { minItems: 2, maxItems: 4 }),
+    }),
+    execute: async (toolCallId: string, params: { question: string; options: string[] }) => {
+      // Emit to the client so AgentView renders the matching component
+      send({ type: 'tool_call', toolCallId, toolName: 'show_poll', args: params })
+      // Pause the agent until the user submits their vote
+      return { content: [], details: { __awaiting: toolCallId }, terminate: true }
+    },
+  }
+}
+```
+
+### Step 3 — Create the React component
+
+Create `app/components/Poll.tsx`. This is what the user sees when the LLM triggers the tool.
+
+```tsx
+'use client'
+
+interface Props {
+  input: { question: string; options: string[] }
+  submitted: boolean
+  result?: { selected_index: number }
+  onSubmit: (result: { selected_index: number }) => void
+}
+
+export function Poll({ input, submitted, result, onSubmit }: Props) {
+  return (
+    <div style={{ border: '1px solid #ccc', padding: 16, borderRadius: 8 }}>
+      <p><strong>{input.question}</strong></p>
+      {input.options.map((opt, i) => (
+        <button
+          key={i}
+          disabled={submitted}
+          onClick={() => onSubmit({ selected_index: i })}
+          style={{ margin: '0 8px 8px 0' }}
+        >
+          {opt} {submitted && result?.selected_index === i ? '✓' : ''}
+        </button>
+      ))}
+    </div>
+  )
+}
+```
+
+### Step 4 — Wire up the server route
+
+Create `app/api/agent/message/route.ts`:
+
+```ts
+import { createAgentRoute } from '@/framework/server/createAgentRoute'
+import { createPollTool } from '@/app/tools/pollTool'
+
+export const POST = createAgentRoute({
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-6',
+  buildSystemPrompt: () =>
+    'You are a friendly assistant. If you want to ask the user a multiple-choice question, use the show_poll tool.',
+  buildTools: (_params, send) => [createPollTool(send)],
+})
+```
+
+### Step 5 — Wire up the client page
+
+Create `app/page.tsx`:
+
+```tsx
+import { AgentView } from '@/framework/ui/AgentView'
+import type { ComponentRegistry } from '@/framework/types'
+import { Poll } from './components/Poll'
+
+const registry: ComponentRegistry = {
+  show_poll: Poll,
+}
+
+export default function Home() {
+  return (
+    <AgentView
+      agentConfig={{
+        endpoint: '/api/agent/message',
+        persistKey: 'myapp_chat',
+        getRequestParams: () => ({}),
+      }}
+      registry={registry}
+      placeholder="Say hello..."
+    />
+  )
+}
+```
+
+### Step 6 — Run
+
+```bash
+npm run dev
+```
+
+Open the app, type "Ask me a question with a poll", and the LLM will stream a response, call `show_poll`, pause, wait for your click, and continue the conversation based on your answer.
 
 ## Directory Structure
 
