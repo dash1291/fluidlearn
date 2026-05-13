@@ -1,10 +1,29 @@
-# Pi Framework
+# flUId
 
-A reusable, self-contained framework for building conversational AI applications with interactive tool-based widgets. The agent streams responses via SSE and can inject interactive React components into the chat flow.
+A reusable, self-contained **chat application platform** built on top of the Pi agent harness. It turns a streaming LLM conversation engine into a full React/Next.js UI — complete with interactive widgets, pagination, search, and persistence.
 
 ## Philosophy
 
-The LLM doesn't just chat — it can inject interactive widgets into the conversation, collect structured input from them, and continue the dialogue based on that input.
+The LLM doesn't just chat — it can inject interactive widgets into the conversation, collect structured input from them, and continue the dialogue based on that input. The framework handles the React lifecycle, UI state, and persistence so you only worry about your domain (tools, prompts, widgets).
+
+## The Stack
+
+```
+┌─────────────────────────────────────────┐
+│  Your App                               │
+│  (system prompt, tools, components)     │
+├─────────────────────────────────────────┤
+│  flUId  ←  YOU ARE HERE                 │
+│  (chat UI, pagination, search, storage) │
+├─────────────────────────────────────────┤
+│  Pi Agent Harness                       │
+│  (streaming, tool orchestration, LLM)   │
+├─────────────────────────────────────────┤
+│  Anthropic / OpenAI APIs                │
+└─────────────────────────────────────────┘
+```
+
+The Pi agent harness is a production-grade conversation engine (battle-tested in coding agents) that handles streaming deltas, tool call detection, and turn lifecycle (`prompt` / `continue`). The framework wraps that engine in a Next.js/React layer.
 
 ## Directory Structure
 
@@ -114,7 +133,6 @@ export const POST = createAgentRoute({
 ```tsx
 // app/page.tsx
 import { AgentView } from '@/framework/ui/AgentView'
-import { useAgent } from '@/framework/hooks/useAgent'
 
 function MyApp() {
   const agentConfig = {
