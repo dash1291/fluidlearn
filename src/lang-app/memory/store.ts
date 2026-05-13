@@ -15,6 +15,7 @@ function emptyData(): LanguageMemoryData {
     inferredLevel: 'beginner',
     words: {},
     userPreferences: null,
+    totalStudyTimeSeconds: 0,
   }
 }
 
@@ -52,6 +53,7 @@ export class LanguageMemoryStore implements IMemoryStore {
   private language: string
   private sessionExercises = 0
   private sessionCorrect = 0
+  private studyStartTime: number | null = null
 
   constructor(language: string, initialData?: LanguageMemoryData) {
     this.language = language
@@ -63,6 +65,22 @@ export class LanguageMemoryStore implements IMemoryStore {
 
   getData(): LanguageMemoryData | null {
     return lsGet<LanguageMemoryData>(storageKey(this.language))
+  }
+
+  startStudyTimer(): void {
+    this.studyStartTime = Date.now()
+  }
+
+  pauseStudyTimer(): number {
+    if (!this.studyStartTime) return 0
+    const elapsed = Math.floor((Date.now() - this.studyStartTime) / 1000)
+    this.studyStartTime = null
+    if (elapsed <= 0) return 0
+
+    const data = lsGet<LanguageMemoryData>(storageKey(this.language)) ?? emptyData()
+    data.totalStudyTimeSeconds = (data.totalStudyTimeSeconds ?? 0) + elapsed
+    lsSet(storageKey(this.language), data)
+    return elapsed
   }
 
   getContext(): string | null {

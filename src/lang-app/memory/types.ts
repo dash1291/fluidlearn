@@ -12,4 +12,5 @@ export interface LanguageMemoryData {
   inferredLevel: 'beginner' | 'intermediate' | 'advanced'
   words: Record<string, WordRecord>
   userPreferences: string | null
+  totalStudyTimeSeconds: number
 }

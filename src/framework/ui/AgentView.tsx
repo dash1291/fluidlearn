@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react'
+import { useEffect, useRef, useState, useCallback, useLayoutEffect, type ReactNode } from 'react'
 import type { AgentConfig, ComponentRegistry } from '../types'
 import { useAgent } from '../hooks/useAgent'
 import { MessageBubble } from './MessageBubble'
@@ -12,6 +12,7 @@ interface Props {
   agentConfig: AgentConfig
   registry: ComponentRegistry
   placeholder?: string
+  toolbarRight?: ReactNode
 }
 
 interface SearchResult {
@@ -22,7 +23,7 @@ interface SearchResult {
   snippet: string
 }
 
-export function AgentView({ agentConfig, registry, placeholder = 'Message your tutor...' }: Props) {
+export function AgentView({ agentConfig, registry, placeholder = 'Message your tutor...', toolbarRight }: Props) {
   const { displayItems, isStreaming, sendUserMessage, submitExerciseResult } =
     useAgent(agentConfig)
 
@@ -190,41 +191,44 @@ export function AgentView({ agentConfig, registry, placeholder = 'Message your t
   return (
     <div className="conversation-container">
       <div className="conversation-toolbar">
-        {isSearchOpen ? (
-          <div className="search-bar">
-            <input
-              className="search-input"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && executeSearch()}
-              placeholder="Search messages..."
-              autoFocus
-            />
-            <button
-              className="search-submit"
-              onClick={executeSearch}
-              disabled={!searchInput.trim() || isSearching}
-            >
-              {isSearching ? 'Searching...' : 'Search'}
+        <div className="toolbar-left">{toolbarRight}</div>
+        <div className="toolbar-right">
+          {isSearchOpen ? (
+            <div className="search-bar">
+              <input
+                className="search-input"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && executeSearch()}
+                placeholder="Search messages..."
+                autoFocus
+              />
+              <button
+                className="search-submit"
+                onClick={executeSearch}
+                disabled={!searchInput.trim() || isSearching}
+              >
+                {isSearching ? 'Searching...' : 'Search'}
+              </button>
+              <button
+                className="search-close"
+                onClick={() => {
+                  setSearchInput('')
+                  setSearchQuery('')
+                  setIsSearchOpen(false)
+                  setServerResults([])
+                  setVisibleCount(PAGE_SIZE)
+                }}
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <button className="search-toggle" onClick={() => setIsSearchOpen(true)}>
+              Search
             </button>
-            <button
-              className="search-close"
-              onClick={() => {
-                setSearchInput('')
-                setSearchQuery('')
-                setIsSearchOpen(false)
-                setServerResults([])
-                setVisibleCount(PAGE_SIZE)
-              }}
-            >
-              Close
-            </button>
-          </div>
-        ) : (
-          <button className="search-toggle" onClick={() => setIsSearchOpen(true)}>
-            Search
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       {isSearchOpen && (serverResults.length > 0 || searchQuery.trim().length >= 2) && (

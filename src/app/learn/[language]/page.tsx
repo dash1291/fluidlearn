@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getLanguage } from '@/lang-app/config'
 import { createClient } from '@/lib/supabase/server'
 import { LearnClient } from './LearnClient'
+import { StudyTimer } from './StudyTimer'
 import { UserMenu } from '@/framework/ui/UserMenu'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
 
@@ -22,9 +23,10 @@ export default async function LearnPage({ params }: Props) {
 
   let initialMessages: unknown[] = []
   let initialMemory: LanguageMemoryData | null = null
+  let timeResult = null
 
   if (user) {
-    const [convResult, memResult] = await Promise.all([
+    const [convResult, memResult, tResult] = await Promise.all([
       supabase
         .from('conversation_history')
         .select('messages')
@@ -37,10 +39,19 @@ export default async function LearnPage({ params }: Props) {
         .eq('user_id', user.id)
         .eq('language', lang.code)
         .maybeSingle(),
+      supabase
+        .from('language_time')
+        .select('total_seconds')
+        .eq('user_id', user.id)
+        .eq('language', lang.code)
+        .maybeSingle(),
     ])
     initialMessages = convResult.data?.messages ?? []
     initialMemory = memResult.data?.data ?? null
+    timeResult = tResult
   }
+
+  const initialTotalSeconds = timeResult?.data?.total_seconds ?? 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
@@ -48,6 +59,7 @@ export default async function LearnPage({ params }: Props) {
         <Link href="/" className="back-link">Back</Link>
         <span className="learn-flag">{lang.flag}</span>
         <h1 className="learn-title">{lang.name}</h1>
+        <StudyTimer initialTotalSeconds={initialTotalSeconds} />
         <UserMenu />
       </div>
       <LearnClient
@@ -55,6 +67,7 @@ export default async function LearnPage({ params }: Props) {
         languageName={lang.name}
         initialMessages={initialMessages}
         initialMemory={initialMemory}
+        initialTotalSeconds={initialTotalSeconds}
       />
     </div>
   )

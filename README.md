@@ -56,6 +56,14 @@ create table language_memory (
   data jsonb default '{}',
   primary key (user_id, language)
 );
+
+create table language_time (
+  user_id uuid references auth.users not null,
+  language text not null,
+  total_seconds integer not null default 0,
+  updated_at timestamp with time zone default now(),
+  primary key (user_id, language)
+);
 ```
 
 Enable **Row Level Security** and add policies so users can only read/write their own rows.

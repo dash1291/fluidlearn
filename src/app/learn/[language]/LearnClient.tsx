@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useCallback } from 'react'
 import { AgentView } from '@/framework/ui/AgentView'
 import { languageComponentRegistry } from '@/lang-app/tools/registry'
 import { LanguageMemoryStore } from '@/lang-app/memory/store'
 import { createClient } from '@/lib/supabase/client'
 import { lsSet } from '@/framework/memory/localStorage'
+import { StudyTimer } from './StudyTimer'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
 
 interface Props {
@@ -13,15 +14,34 @@ interface Props {
   languageName: string
   initialMessages: unknown[]
   initialMemory: LanguageMemoryData | null
+  initialTotalSeconds?: number
 }
 
-export function LearnClient({ language, languageName, initialMessages, initialMemory }: Props) {
+export function LearnClient({ language, languageName, initialMessages, initialMemory, initialTotalSeconds = 0 }: Props) {
   const persistKey = `fluid_conversation_${language}`
 
   const memoryStore = useMemo(
     () => new LanguageMemoryStore(language, initialMemory ?? undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [language],
+  )
+
+  const flushTime = useCallback(
+    (useBeacon = false) => {
+      const seconds = memoryStore.pauseStudyTimer()
+      if (seconds <= 0) return
+      const body = JSON.stringify({ language, seconds })
+      if (useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon('/api/agent/track-time', body)
+      } else {
+        fetch('/api/agent/track-time', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        }).catch(() => {})
+      }
+    },
+    [language, memoryStore],
   )
 
   // Remote state always wins — overwrite localStorage with Supabase data on load.
@@ -32,6 +52,33 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Track active study time for this language session
+  useEffect(() => {
+    memoryStore.startStudyTimer()
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        flushTime(false)
+      } else {
+        memoryStore.startStudyTimer()
+      }
+    }
+
+    const handleBeforeUnload = () => {
+      flushTime(true)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      flushTime(false)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, memoryStore])
 
   const agentConfig = useMemo(
     () => ({
@@ -84,6 +131,7 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
           .catch(() => {})
       },
       onSessionEnd: () => {
+        flushTime(false)
         memoryStore.endSession()
         // Persist final memory state to Supabase
         const data = memoryStore.getData()
@@ -109,6 +157,7 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
       agentConfig={agentConfig}
       registry={languageComponentRegistry}
       placeholder={`Message your ${languageName} tutor...`}
+      toolbarRight={<StudyTimer initialTotalSeconds={initialTotalSeconds} />}
     />
   )
 }
