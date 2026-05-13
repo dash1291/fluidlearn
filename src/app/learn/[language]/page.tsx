@@ -4,7 +4,7 @@ import { getLanguage } from '@/lang-app/config'
 import { createClient } from '@/lib/supabase/server'
 import { LearnClient } from './LearnClient'
 import { StudyTimer } from './StudyTimer'
-import { UserMenu } from '@/framework/ui/UserMenu'
+import { UserMenu } from '@/app/components/UserMenu'
 import type { LanguageMemoryData } from '@/lang-app/memory/types'
 
 export const dynamic = 'force-dynamic'

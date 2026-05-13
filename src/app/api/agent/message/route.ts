@@ -1,119 +1,15 @@
-import { Agent } from '@earendil-works/pi-agent-core'
-import { getModel, getEnvApiKey } from '@earendil-works/pi-ai'
-import { streamSimpleAnthropic } from '@earendil-works/pi-ai/anthropic'
+import { createAgentRoute } from '@/framework/server/createAgentRoute'
 import { getSystemPrompt } from '@/lang-app/system-prompt'
 import { createLanguageTools } from '@/lang-app/tools/piDefinitions'
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
 
-const encoder = new TextEncoder()
-
-function sseChunk(event: object): Uint8Array {
-  return encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-}
-
-export async function POST(request: Request) {
-  const {
-    messages,
-    newMessage,
-    language,
-    languageName,
-    memoryContext,
-  }: {
-    messages: AgentMessage[]
-    newMessage?: string
-    language: string
-    languageName: string
-    memoryContext: string | null
-  } = await request.json()
-
-  let ctrl!: ReadableStreamDefaultController<Uint8Array>
-
-  const send = (event: object) => {
-    try {
-      ctrl.enqueue(sseChunk(event))
-    } catch {
-      // stream already closed
-    }
-  }
-
-  const stream = new ReadableStream<Uint8Array>({
-    start(c) {
-      ctrl = c
-      runAgent({ messages, newMessage, language, languageName, memoryContext }, send)
-        .catch(err => {
-          send({ type: 'error', message: err instanceof Error ? err.message : String(err) })
-        })
-        .finally(() => c.close())
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  })
-}
-
-async function runAgent(
-  params: {
-    messages: AgentMessage[]
-    newMessage?: string
-    language: string
-    languageName: string
-    memoryContext: string | null
-  },
-  send: (event: object) => void,
-) {
-  const { newMessage, language, languageName, memoryContext } = params
-  // Ensure tool result messages always have content array (old client data may be missing it)
-  const messages = (params.messages ?? []).map(m => {
-    if ((m as any).role === 'toolResult' && !(m as any).content) {
-      return { ...m, content: [] }
-    }
-    return m
-  })
-
-  const model = getModel('anthropic', 'claude-sonnet-4-6')
-  const tools = createLanguageTools(send)
-
-  const agent = new Agent({
-    initialState: {
-      model,
-      systemPrompt: getSystemPrompt(language, languageName, memoryContext ?? null),
-      tools,
-      messages: messages ?? [],
-    },
-    getApiKey: () => getEnvApiKey('anthropic'),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    streamFn: streamSimpleAnthropic as any,
-  })
-
-  agent.subscribe(event => {
-    if (event.type === 'message_update') {
-      const { assistantMessageEvent } = event
-      if (assistantMessageEvent.type === 'text_delta') {
-        send({ type: 'text_delta', delta: assistantMessageEvent.delta })
-      }
-    }
-    if (event.type === 'agent_end') {
-      const msgs = event.messages
-      const awaitingIdx = msgs.findIndex(
-        m => (m as unknown as Record<string, unknown>).role === 'toolResult'
-          && ((m as unknown as Record<string, unknown>).details as Record<string, unknown>)?.__awaiting,
-      )
-      if (awaitingIdx !== -1) {
-        send({ type: 'paused', messages: msgs.slice(0, awaitingIdx) })
-      } else {
-        send({ type: 'done', messages: msgs })
-      }
-    }
-  })
-
-  if (newMessage) {
-    await agent.prompt(newMessage)
-  } else {
-    await agent.continue()
-  }
-}
+export const POST = createAgentRoute({
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-6',
+  buildSystemPrompt: (params) =>
+    getSystemPrompt(
+      params.language as string,
+      params.languageName as string,
+      (params.memoryContext as string | null) ?? null,
+    ),
+  buildTools: (_params, send) => createLanguageTools(send),
+})

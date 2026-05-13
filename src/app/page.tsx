@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { SUPPORTED_LANGUAGES } from '@/lang-app/config'
-import { UserMenu } from '@/framework/ui/UserMenu'
+import { UserMenu } from './components/UserMenu'
 
 export default function Home() {
   return (
