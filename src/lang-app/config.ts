@@ -14,6 +14,8 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'italian', name: 'Italian', flag: '🇮🇹', nativeName: 'Italiano' },
   { code: 'mandarin', name: 'Mandarin', flag: '🇨🇳', nativeName: '普通话' },
   { code: 'kannada', name: 'Kannada', flag: '🇮🇳', nativeName: 'ಕನ್ನಡ' },
+  { code: 'hindi', name: 'Hindi', flag: '🇮🇳', nativeName: 'हिन्दी' },
+  { code: 'tamil', name: 'Tamil', flag: '🇮🇳', nativeName: 'தமிழ்' },
 ]
 
 export function getLanguage(code: string): Language | undefined {
