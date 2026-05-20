@@ -3,20 +3,21 @@ export interface Language {
   name: string
   flag: string
   nativeName: string
+  speechCode: string
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [
-  { code: 'spanish', name: 'Spanish', flag: '🇪🇸', nativeName: 'Español' },
-  { code: 'french', name: 'French', flag: '🇫🇷', nativeName: 'Français' },
-  { code: 'japanese', name: 'Japanese', flag: '🇯🇵', nativeName: '日本語' },
-  { code: 'german', name: 'German', flag: '🇩🇪', nativeName: 'Deutsch' },
-  { code: 'portuguese', name: 'Portuguese', flag: '🇧🇷', nativeName: 'Português' },
-  { code: 'italian', name: 'Italian', flag: '🇮🇹', nativeName: 'Italiano' },
-  { code: 'mandarin', name: 'Mandarin', flag: '🇨🇳', nativeName: '普通话' },
-  { code: 'kannada', name: 'Kannada', flag: '🇮🇳', nativeName: 'ಕನ್ನಡ' },
-  { code: 'hindi', name: 'Hindi', flag: '🇮🇳', nativeName: 'हिन्दी' },
-  { code: 'tamil', name: 'Tamil', flag: '🇮🇳', nativeName: 'தமிழ்' },
-]
+  { code: 'spanish', name: 'Spanish', flag: '🇪🇸', nativeName: 'Español', speechCode: 'es' },
+  { code: 'french', name: 'French', flag: '🇫🇷', nativeName: 'Français', speechCode: 'fr' },
+  { code: 'japanese', name: 'Japanese', flag: '🇯🇵', nativeName: '日本語', speechCode: 'ja' },
+  { code: 'german', name: 'German', flag: '🇩🇪', nativeName: 'Deutsch', speechCode: 'de' },
+  { code: 'portuguese', name: 'Portuguese', flag: '🇧🇷', nativeName: 'Português', speechCode: 'pt' },
+  { code: 'italian', name: 'Italian', flag: '🇮🇹', nativeName: 'Italiano', speechCode: 'it' },
+  { code: 'mandarin', name: 'Mandarin', flag: '🇨🇳', nativeName: '普通话', speechCode: 'zh-CN' },
+  { code: 'kannada', name: 'Kannada', flag: '🇮🇳', nativeName: 'ಕನ್ನಡ', speechCode: 'kn' },
+  { code: 'hindi', name: 'Hindi', flag: '🇮🇳', nativeName: 'हिन्दी', speechCode: 'hi' },
+  { code: 'tamil', name: 'Tamil', flag: '🇮🇳', nativeName: 'தமிழ்', speechCode: 'ta' },
+  ]
 
 export function getLanguage(code: string): Language | undefined {
   return SUPPORTED_LANGUAGES.find(l => l.code === code)
