@@ -13,11 +13,12 @@
     "@fluid/ui": "github:dash1291/flUId",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.17.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "transliteration": "^2.6.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
