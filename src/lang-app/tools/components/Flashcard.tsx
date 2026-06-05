@@ -169,19 +169,9 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
     }
   }
   const handleRate = (rating: FlashcardResult['rating']) => {
-
-    console.log('RATING CLICKED')
-    console.log('practiceMode BEFORE:', practiceMode)
-    console.log('submitted BEFORE:', submitted)
-
     setChosen(rating)
-
     setPracticeMode(false)
-
-    console.log('CALLING onSubmit')
     onSubmit({ rating })
-
-    console.log('ONSUBMIT FINISHED')
   }
 
   return (

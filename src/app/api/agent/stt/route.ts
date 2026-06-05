@@ -1,6 +1,5 @@
 export async function POST(req: Request) {
   try {
-    console.log('STT route hit')
 
     const formData = await req.formData()
 
