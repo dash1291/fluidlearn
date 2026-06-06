@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getLanguage } from '@/lang-app/config'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { LearnClient } from './LearnClient'
 import { StudyTimer } from './StudyTimer'
 import { UserMenu } from '@/app/components/UserMenu'
