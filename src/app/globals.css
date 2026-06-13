@@ -93,6 +93,30 @@ body {
   color: var(--color-text);
 }
 
+.bubble-error {
+  background: var(--color-wrong-bg);
+  border-color: var(--color-wrong);
+}
+
+.bubble-error > p {
+  margin: 0;
+}
+
+.bubble-error summary {
+  cursor: pointer;
+  color: var(--color-wrong);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.bubble-error pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+}
+
 /* Markdown styles inside assistant bubbles */
 .bubble-assistant p { margin: 0 0 8px; }
 .bubble-assistant p:last-child { margin-bottom: 0; }
