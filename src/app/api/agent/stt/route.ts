@@ -1,11 +1,11 @@
+const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
+
 export async function POST(req: Request) {
   try {
-
     const formData = await req.formData()
 
     const audio = formData.get('audio') as Blob
-
-    console.log(audio)
+    const language = formData.get('language') as string | null
 
     if (!audio) {
       return Response.json(
@@ -13,24 +13,37 @@ export async function POST(req: Request) {
         { status: 400 }
       )
     }
-    
-    const response = await fetch(
-      'https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
-          'Content-Type': audio.type,
-        },
-        body: audio,
-      }
-    )
 
-    console.log('HF response status:', response.status)
+    // Groq Whisper takes the audio as a multipart file upload plus an
+    // ISO-639-1 language hint, which steers transcription far more reliably
+    // than letting Whisper auto-detect (which misreads short Kannada clips).
+    const groqForm = new FormData()
+    groqForm.append('file', audio, 'audio.webm')
+    groqForm.append('model', 'whisper-large-v3')
+    groqForm.append('response_format', 'json')
+    if (language) {
+      groqForm.append('language', language)
+    }
+
+    const response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: groqForm,
+      signal: AbortSignal.timeout(30_000),
+    })
 
     const text = await response.text()
 
-    console.log(text)
+    if (!response.ok) {
+      console.error('Groq STT failed:', response.status, text.slice(0, 500))
+
+      return Response.json(
+        { error: `Speech service unavailable (${response.status})` },
+        { status: 502 }
+      )
+    }
 
     return new Response(text, {
       status: 200,
@@ -41,14 +54,20 @@ export async function POST(req: Request) {
   }
 
   catch (error) {
-    console.error('FULL ERROR:', error)
+    const timedOut = error instanceof Error && error.name === 'TimeoutError'
+
+    if (timedOut) {
+      console.warn('STT: Groq Whisper timed out')
+    } else {
+      console.error('STT error:', error)
+    }
 
     return Response.json(
       {
-        error: String(error),
+        error: timedOut ? 'Speech service timed out' : String(error),
       },
       {
-        status: 500,
+        status: timedOut ? 504 : 500,
       }
     )
   }
