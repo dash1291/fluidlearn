@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Volume2 } from 'lucide-react'
 
 interface VocabularyInput {
-  words: Array<{ word: string; translation: string; pronunciation?: string; example?: string }>
+  words: Array<{ word: string; tts_text?: string; translation: string; pronunciation?: string; example?: string }>
 }
 
 export function VocabularyList({ input, submitted, onSubmit }: ExerciseComponentProps<VocabularyInput>) {
@@ -38,7 +38,7 @@ export function VocabularyList({ input, submitted, onSubmit }: ExerciseComponent
                     setSpeakingWord(word.word)
 
                     const response = await fetch(
-                      `/api/agent/tts?text=${encodeURIComponent(word.word)}&lang=${speechCode}`
+                      `/api/agent/tts?text=${encodeURIComponent(word.tts_text || word.word)}&lang=${speechCode}`
                     )
 
                     const blob = await response.blob()

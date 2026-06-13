@@ -2,14 +2,17 @@
 
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@fluid/ui'
-import { Mic, Volume2 } from 'lucide-react'
+import { Volume2 } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { SUPPORTED_LANGUAGES } from '@/lang-app/config'
-import { transliterate } from 'transliteration'
+
+type FlashcardMode = 'listening' | 'production' | 'reading'
 
 interface FlashcardInput {
   front: string
+  tts_text?: string
   back: string
+  mode?: FlashcardMode
   pronunciation?: string
   context?: string
 }
@@ -29,11 +32,10 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
   const [flipped, setFlipped] = useState(false)
   const [chosen, setChosen] = useState<FlashcardResult['rating'] | null>(null)
   const [speaking, setSpeaking] = useState(false)
-  const [listening, setListening] = useState(false)
-  const [transcript, setTranscript] = useState('')
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
-  const [practiceMode, setPracticeMode] = useState(false)
   const params = useParams()
+
+  // Cards from before the mode param existed have no mode — they were text-front
+  const mode: FlashcardMode = input.mode ?? 'reading'
 
   const currentLanguage = SUPPORTED_LANGUAGES.find(
     lang => lang.code === params.language
@@ -45,7 +47,7 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
       setSpeaking(true)
 
       const response = await fetch(
-        `/api/agent/tts?text=${encodeURIComponent(input.front)}&lang=${speechCode}`
+        `/api/agent/tts?text=${encodeURIComponent(input.tts_text || input.front)}&lang=${speechCode}`
       )
 
       const blob = await response.blob()
@@ -66,113 +68,24 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
       setSpeaking(false)
     }
   }
-  const startListening = async () => {
-    try {
-      setListening(true)
-      setPracticeMode(true)
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      })
-
-      const mediaRecorder = new MediaRecorder(stream)
-
-      const chunks: Blob[] = []
-
-      mediaRecorder.ondataavailable = event => {
-        chunks.push(event.data)
-      }
-
-      mediaRecorder.onstop = async () => {
-        setListening(false)
-        try {
-          if (chunks.length === 0) {
-            return
-          }
-          const audioBlob = new Blob(chunks, {
-            type: 'audio/webm',
-          })
-
-          const formData = new FormData()
-
-          formData.append('audio', audioBlob)
-
-          const response = await fetch('/api/agent/stt', {
-            method: 'POST',
-            body: formData,
-          })
-
-          const data = await response.json()
-          console.log(data)
-
-          const rawSpoken =
-          data.text ||
-          data.generated_text ||
-          data[0]?.generated_text ||
-          ''
-
-        const spoken = transliterate(rawSpoken)
-          .toLowerCase()
-          .replace(/[^a-z]/g, '')
-
-        setTranscript(spoken)
-
-          const expected = (
-            input.pronunciation || ''
-          )
-            .toLowerCase()
-            .replace(/[^a-z]/g, '')
-          const similarity =
-            spoken === expected ||
-            spoken.startsWith(expected.slice(0, 5)) ||
-            expected.startsWith(spoken.slice(0, 5))
-          const correct =
-            spoken.length > 4 &&
-            (
-              spoken.includes(expected.slice(0, 6)) ||
-              expected.includes(spoken.slice(0, 6))
-            )
-
-          setIsCorrect(correct)
-
-          setFlipped(true)
-
-          if (!correct) {
-            setTimeout(() => {
-              setTranscript('')
-              setIsCorrect(null)
-              setFlipped(false)
-            }, 4000)
-          }
-        }
-
-        catch (err) {
-          console.error(err)
-        }
-
-        finally {
-          stream.getTracks().forEach(track => track.stop())
-        }
-      }
-
-      mediaRecorder.start()
-
-      setTimeout(() => {
-        mediaRecorder.stop()
-      }, 3000)
-    }
-
-    catch (err) {
-      console.error(err)
-
-      setListening(false)
-    }
-  }
   const handleRate = (rating: FlashcardResult['rating']) => {
     setChosen(rating)
-    setPracticeMode(false)
     onSubmit({ rating })
   }
+
+  const speakButton = (size: number) => (
+    <button
+      className={`text-gray-500 ${
+        speaking ? 'animate-pulse scale-125' : ''
+      }`}
+      onClick={e => {
+        e.stopPropagation()
+        speakWord()
+      }}
+    >
+      <Volume2 size={size} />
+    </button>
+  )
 
   return (
     <div className="exercise-card">
@@ -187,73 +100,57 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
         onKeyDown={e => e.key === 'Enter' && !submitted && setFlipped(f => !f)}
       >
         {!flipped ? (
-          <div className="flex items-center justify-center gap-2">
-            <p className="flashcard-word">{input.front}</p>
+          <div className="flex flex-col items-center justify-center gap-2">
+            {mode === 'listening' && (
+              <>
+                {speakButton(32)}
+                <p className="flashcard-context">Tap to listen — what does it mean?</p>
+              </>
+            )}
+            {mode === 'production' && (
+              <>
+                <p className="flashcard-word">{input.back}</p>
+                <p className="flashcard-context">
+                  Say it in {currentLanguage?.name ?? 'the target language'}
+                </p>
+              </>
+            )}
+            {mode === 'reading' && (
+              <div className="flex items-center justify-center gap-2">
+                <p className="flashcard-word">{input.front}</p>
+                {speakButton(18)}
+              </div>
+            )}
 
             <button
-              className={`text-gray-500 ${
-                speaking ? 'animate-pulse scale-125' : ''
-              }`}
+              className="text-sm px-2 py-1 border rounded"
               onClick={e => {
                 e.stopPropagation()
-                speakWord()
+                setFlipped(true)
               }}
             >
-              <Volume2 size={18} />
+              Flip
             </button>
-
-            <button
-              className={`text-gray-500 ${
-                listening ? 'animate-pulse text-red-500' : ''
-              }`}
-              onClick={e => {
-                e.stopPropagation()
-                startListening()
-              }}
-            >
-              <Mic size={18} />
-            </button><button
-  className="text-sm px-2 py-1 border rounded"
-  onClick={e => {
-    e.stopPropagation()
-    setFlipped(true)
-  }}
->
-  Flip
-</button>
           </div>
         ) : (
           <div className="flashcard-back">
-            <p className="flashcard-word">{input.back}</p>
-            {input.pronunciation && <p className="flashcard-pronunciation">{input.pronunciation}</p>}
-            {input.context && <p className="flashcard-context">{input.context}</p>}
-            {transcript != null && (
+            {mode === 'reading' ? (
+              <p className="flashcard-word">{input.back}</p>
+            ) : (
               <>
-                <div style={{ pointerEvents: 'none' }}>
-                  <p className="flashcard-context">
-                    You said: {transcript}
-                  </p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="flashcard-word">{input.front}</p>
+                  {speakButton(18)}
                 </div>
-
-                {isCorrect !== null && (
-                  <p
-                    style={{
-                      color: isCorrect ? 'green' : 'red',
-                      fontWeight: 600,
-                      marginTop: '6px',
-                    }}
-                  >
-                    {isCorrect
-                      ? 'Correct pronunciation!'
-                      : 'Try again'}
-                  </p>
-                )}
+                <p className="flashcard-context">{input.back}</p>
               </>
             )}
+            {input.pronunciation && <p className="flashcard-pronunciation">{input.pronunciation}</p>}
+            {input.context && <p className="flashcard-context">{input.context}</p>}
           </div>
         )}
       </div>
-      {flipped && (!submitted || practiceMode) && (
+      {flipped && !submitted && (
         <div className="rating-row">
           {RATINGS.map(r => (
             <button key={r.value} className={r.className} onClick={() => handleRate(r.value)}>

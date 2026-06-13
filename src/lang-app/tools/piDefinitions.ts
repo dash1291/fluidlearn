@@ -18,7 +18,33 @@ function waitForUser<T>(toolCallId: string, toolName: string, args: T, send: Sen
   }
 }
 
-export function createLanguageTools(send: SendFn): AgentTool<any>[] {
+const NATIVE_SCRIPT: Record<string, RegExp> = {
+  kannada: /[ಀ-೿]/,
+  hindi: /[ऀ-ॿ]/,
+  tamil: /[஀-௿]/,
+  japanese: /[぀-ヿ一-鿿]/,
+  mandarin: /[一-鿿]/,
+}
+
+// TTS reads tts_text (falling back to the displayed word) and cannot pronounce
+// romanized text, so whatever feeds the audio must contain native script.
+// Throwing returns the message to the agent as a tool error so it retries.
+function requireNativeTtsText(
+  language: string | undefined,
+  entries: { display: string; tts?: string }[],
+) {
+  const script = language ? NATIVE_SCRIPT[language] : undefined
+  if (!script) return
+  for (const { display, tts } of entries) {
+    if (!script.test(tts || display)) {
+      throw new Error(
+        `"${display}" cannot be spoken aloud: no native-script text for TTS. Keep the displayed word as is, but also pass tts_text with the ${language} native-script form.`,
+      )
+    }
+  }
+}
+
+export function createLanguageTools(send: SendFn, language?: string): AgentTool<any>[] {
   return [
     {
       name: 'show_lesson',
@@ -50,7 +76,10 @@ export function createLanguageTools(send: SendFn): AgentTool<any>[] {
       parameters: Type.Object({
         words: Type.Array(
           Type.Object({
-            word: Type.String({ description: 'Word in the target language, using the learner\'s preferred script/romanization if expressed.' }),
+            word: Type.String({ description: 'Word in the target language, in the learner\'s preferred script/romanization.' }),
+            tts_text: Type.Optional(
+              Type.String({ description: 'The word in the language\'s native script — used only for text-to-speech audio. Required whenever word is romanized; TTS cannot pronounce romanized text.' }),
+            ),
             translation: Type.String({ description: 'English translation' }),
             pronunciation: Type.Optional(
               Type.String({ description: 'Pronunciation guide or romanization' }),
@@ -62,17 +91,31 @@ export function createLanguageTools(send: SendFn): AgentTool<any>[] {
           { minItems: 2, maxItems: 10 },
         ),
       }),
-      execute: async (toolCallId, params) => displayed(toolCallId, 'show_vocabulary', params, send),
+      execute: async (toolCallId, params) => {
+        const p = params as { words: { word: string; tts_text?: string }[] }
+        requireNativeTtsText(language, p.words.map(w => ({ display: w.word, tts: w.tts_text })))
+        return displayed(toolCallId, 'show_vocabulary', params, send)
+      },
     },
 
     {
       name: 'show_flashcard',
       label: 'Flashcard',
       description:
-        'Show a single flashcard for vocabulary recall. The user flips it and rates how well they knew the answer.',
+        'Show a single flashcard for vocabulary recall. The user flips it and rates how well they knew the answer. The mode controls which direction is quizzed.',
       parameters: Type.Object({
-        front: Type.String({ description: 'Front of card — word or phrase in the target language. Use the learner\'s preferred script/romanization if they have expressed one.' }),
-        back: Type.String({ description: 'Back of card — English translation' }),
+        front: Type.String({ description: 'The word or phrase in the target language, in the learner\'s preferred script/romanization. Always the target-language side, regardless of mode.' }),
+        tts_text: Type.Optional(
+          Type.String({ description: 'The word in the language\'s native script — used only for text-to-speech audio. Required whenever front is romanized; TTS cannot pronounce romanized text.' }),
+        ),
+        back: Type.String({ description: 'English translation' }),
+        mode: Type.Union(
+          [Type.Literal('listening'), Type.Literal('production'), Type.Literal('reading')],
+          {
+            description:
+              'Quiz direction. listening: the user hears the word spoken aloud and recalls its meaning — the default for oral-first beginners. production: the user sees the English and recalls the target word — use for active recall once a word has been introduced. reading: the user reads the target-language text and recalls the meaning — only when the learner is practicing reading the script.',
+          },
+        ),
         pronunciation: Type.Optional(
           Type.String({ description: 'Pronunciation guide or romanization' }),
         ),
@@ -80,7 +123,35 @@ export function createLanguageTools(send: SendFn): AgentTool<any>[] {
           Type.String({ description: 'Optional example sentence using the word' }),
         ),
       }),
-      execute: async (toolCallId, params) => waitForUser(toolCallId, 'show_flashcard', params, send),
+      execute: async (toolCallId, params) => {
+        const p = params as { front: string; tts_text?: string }
+        requireNativeTtsText(language, [{ display: p.front, tts: p.tts_text }])
+        return waitForUser(toolCallId, 'show_flashcard', params, send)
+      },
+    },
+
+    {
+      name: 'show_pronunciation_drill',
+      label: 'Pronunciation Drill',
+      description:
+        'Ask the user to say a word or short phrase aloud. Their speech is transcribed and returned as the result — judge whether it matches the target and give brief feedback. Use after introducing a word, especially for beginners.',
+      parameters: Type.Object({
+        word: Type.String({ description: 'Word or short phrase to pronounce, in the learner\'s preferred script/romanization.' }),
+        tts_text: Type.Optional(
+          Type.String({ description: 'The word in the language\'s native script — used only for text-to-speech audio. Required whenever word is romanized; TTS cannot pronounce romanized text.' }),
+        ),
+        pronunciation: Type.Optional(
+          Type.String({ description: 'Pronunciation guide or romanization shown to the user' }),
+        ),
+        translation: Type.Optional(
+          Type.String({ description: 'English translation shown to the user' }),
+        ),
+      }),
+      execute: async (toolCallId, params) => {
+        const p = params as { word: string; tts_text?: string }
+        requireNativeTtsText(language, [{ display: p.word, tts: p.tts_text }])
+        return waitForUser(toolCallId, 'show_pronunciation_drill', params, send)
+      },
     },
 
     {

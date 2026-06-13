@@ -11,5 +11,5 @@ export const POST = createAgentRoute({
       params.languageName as string,
       (params.memoryContext as string | null) ?? null,
     ),
-  buildTools: (_params, send) => createLanguageTools(send),
+  buildTools: (params, send) => createLanguageTools(send, params.language as string | undefined),
 })
