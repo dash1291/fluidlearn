@@ -104,7 +104,7 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
             {mode === 'listening' && (
               <>
                 {speakButton(32)}
-                <p className="flashcard-context">Tap to listen — what does it mean?</p>
+                <p className="flashcard-context">Tap the card to reveal.</p>
               </>
             )}
             {mode === 'production' && (
@@ -121,16 +121,6 @@ export function Flashcard({ input, submitted, onSubmit }: ExerciseComponentProps
                 {speakButton(18)}
               </div>
             )}
-
-            <button
-              className="text-sm px-2 py-1 border rounded"
-              onClick={e => {
-                e.stopPropagation()
-                setFlipped(true)
-              }}
-            >
-              Flip
-            </button>
           </div>
         ) : (
           <div className="flashcard-back">

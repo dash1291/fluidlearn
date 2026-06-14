@@ -231,5 +231,48 @@ export function createLanguageTools(send: SendFn, language?: string): AgentTool<
       execute: async (toolCallId, params) =>
         waitForUser(toolCallId, 'show_arrange', params, send),
     },
+    {
+      name: 'set_learning_plan',
+      label: 'Set Learning Plan',
+      description:
+        "Create the learner's long-term roadmap. Call this once near the start, after learning their level and goal — only when no roadmap already exists in the Returning Learner Context. You decide the milestone structure.",
+      parameters: Type.Object({
+        goal: Type.String({
+          description: "The learner's high-level goal in plain language, e.g. \"hold a basic conversation while travelling\".",
+        }),
+        isDefault: Type.Boolean({
+          description:
+            'true if you adopted a standard language-proficiency roadmap because the learner gave no specific goal; false if the plan is tailored to a goal they stated.',
+        }),
+        milestones: Type.Array(
+          Type.Object({
+            id: Type.String({ description: 'A short, stable id you assign, e.g. "m1", "m2". Reused later to mark progress.' }),
+            title: Type.String({ description: 'Concise milestone title, e.g. "Greetings & introductions".' }),
+            description: Type.Optional(
+              Type.String({ description: 'Optional one-line detail of what the milestone covers.' }),
+            ),
+          }),
+          { minItems: 3, maxItems: 8 },
+        ),
+      }),
+      execute: async (toolCallId, params) =>
+        waitForUser(toolCallId, 'set_learning_plan', params, send),
+    },
+
+    {
+      name: 'update_learning_plan',
+      label: 'Update Learning Plan',
+      description:
+        'Mark progress on the roadmap when the learner has demonstrated mastery of the current milestone. By default this advances the current milestone; pass completedMilestoneId to complete a specific one.',
+      parameters: Type.Object({
+        completedMilestoneId: Type.Optional(
+          Type.String({
+            description: 'The [id] of the milestone to mark complete, as shown in the roadmap. Omit to advance the current milestone.',
+          }),
+        ),
+      }),
+      execute: async (toolCallId, params) =>
+        waitForUser(toolCallId, 'update_learning_plan', params, send),
+    },
   ]
 }

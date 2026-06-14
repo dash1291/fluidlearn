@@ -7,7 +7,7 @@ import { LanguageMemoryStore } from '@/lang-app/memory/store'
 import { createClient } from '@/lib/supabase/client'
 import { lsSet } from '@fluid/ui'
 import { StudyTimer } from './StudyTimer'
-import type { LanguageMemoryData } from '@/lang-app/memory/types'
+import type { LanguageMemoryData, Milestone } from '@/lang-app/memory/types'
 
 interface Props {
   language: string
@@ -81,7 +81,23 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
   }, [language, memoryStore])
 
   const agentConfig = useMemo(
-    () => ({
+    () => {
+      // Upsert the full memory blob to Supabase now (not just at session end),
+      // so a freshly created/updated plan survives an abrupt tab close.
+      const persistMemory = () => {
+        const data = memoryStore.getData()
+        if (!data) return
+        const supabase = createClient()
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (!user) return
+          supabase.from('language_memory').upsert(
+            { user_id: user.id, language, data, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id,language' },
+          )
+        })
+      }
+
+      return {
       endpoint: '/api/agent/message',
       persistKey,
       getRequestParams: () => ({
@@ -95,7 +111,47 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
         input: Record<string, unknown>,
         result: unknown,
       ) => {
-        memoryStore.recordExerciseResult(toolName, input, result)
+
+        if (toolName === 'set_learning_plan') {
+          const milestones: Milestone[] = (
+            (input.milestones as Array<{ id: string; title: string; description?: string }>) ?? []
+          ).map((m, index) => ({
+            ...m,
+            status: index === 0 ? 'in_progress' : 'pending',
+          }))
+
+          memoryStore.setPlan({
+            goal: input.goal as string,
+            isDefault: (input.isDefault as boolean) ?? false,
+            milestones,
+            currentMilestoneId: milestones[0]?.id ?? null,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          })
+          persistMemory()
+          return
+        }
+
+        if (toolName === 'update_learning_plan') {
+          // completedMilestoneId is a tool parameter, so it lives in `input`.
+          // Fall back to the current milestone when the agent omits it.
+          const completedId =
+            (input.completedMilestoneId as string | undefined) ??
+            memoryStore.getPlan()?.currentMilestoneId ??
+            undefined
+
+          if (completedId) {
+            memoryStore.completeMilestone(completedId)
+            persistMemory()
+          }
+          return
+        }
+
+        memoryStore.recordExerciseResult(
+          toolName,
+          input,
+          result,
+        )
       },
       onConversationSave: (fullMessages: unknown[]) => {
         const supabase = createClient()
@@ -134,20 +190,10 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
         flushTime(false)
         memoryStore.endSession()
         // Persist final memory state to Supabase
-        const data = memoryStore.getData()
-        if (!data) return
-        const supabase = createClient()
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (!user) return
-          supabase.from('language_memory').upsert({
-            user_id: user.id,
-            language,
-            data,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id,language' })
-        })
+        persistMemory()
       },
-    }),
+      }
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [language, languageName, memoryStore],
   )
