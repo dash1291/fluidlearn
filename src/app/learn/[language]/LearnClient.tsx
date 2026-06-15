@@ -15,9 +15,10 @@ interface Props {
   initialMessages: unknown[]
   initialMemory: LanguageMemoryData | null
   initialTotalSeconds?: number
+  authenticated?: boolean
 }
 
-export function LearnClient({ language, languageName, initialMessages, initialMemory, initialTotalSeconds = 0 }: Props) {
+export function LearnClient({ language, languageName, initialMessages, initialMemory, initialTotalSeconds = 0, authenticated = false }: Props) {
   const persistKey = `fluid_conversation_${language}`
 
   const memoryStore = useMemo(
@@ -44,10 +45,11 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
     [language, memoryStore],
   )
 
-  // Remote state always wins — overwrite localStorage with Supabase data on load.
-  // If Supabase has no history yet, keep whatever is in localStorage (e.g. pre-login local session).
+  // Anonymous sessions keep history client-side; seed localStorage from any
+  // Supabase data on load. Authenticated sessions read history server-side and
+  // hydrate the display from initialMessages, so localStorage is unused.
   useEffect(() => {
-    if (initialMessages.length > 0) {
+    if (!authenticated && initialMessages.length > 0) {
       lsSet(persistKey, { piMessages: initialMessages })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,6 +86,8 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
     () => ({
       endpoint: '/api/agent/message',
       persistKey,
+      serverHistory: authenticated,
+      initialMessages,
       getRequestParams: () => ({
         language,
         languageName,
@@ -149,7 +153,7 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [language, languageName, memoryStore],
+    [language, languageName, memoryStore, authenticated],
   )
 
   return (

@@ -70,6 +70,7 @@ export default async function LearnPage({ params }: Props) {
           initialMessages={initialMessages}
           initialMemory={initialMemory}
           initialTotalSeconds={initialTotalSeconds}
+          authenticated={!!user}
         />
       </div>
       <Footer />
