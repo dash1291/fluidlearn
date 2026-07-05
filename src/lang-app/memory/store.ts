@@ -175,27 +175,17 @@ export class LanguageMemoryStore implements IMemoryStore {
     data.userPreferences = preferences
     lsSet(storageKey(this.language), data)
   }
-  setPlan(plan: LearningPlan): void {
+  setPlan(plan: Omit<LearningPlan, 'createdAt' | 'updatedAt'>): void {
     const data =
       lsGet<LanguageMemoryData>(storageKey(this.language))
       ?? emptyData()
 
+    const now = Date.now()
     data.learningPlan = {
       ...plan,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }
-
-    lsSet(storageKey(this.language), data)
-  }
-  updatePlan(plan: LearningPlan): void {
-    const data =
-      lsGet<LanguageMemoryData>(storageKey(this.language))
-      ?? emptyData()
-
-    data.learningPlan = {
-      ...plan,
-      updatedAt: Date.now(),
+      // Store owns the timestamps; preserve createdAt if a plan already exists.
+      createdAt: data.learningPlan?.createdAt ?? now,
+      updatedAt: now,
     }
 
     lsSet(storageKey(this.language), data)

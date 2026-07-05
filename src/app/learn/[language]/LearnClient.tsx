@@ -125,8 +125,6 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
             isDefault: (input.isDefault as boolean) ?? false,
             milestones,
             currentMilestoneId: milestones[0]?.id ?? null,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
           })
           persistMemory()
           return
