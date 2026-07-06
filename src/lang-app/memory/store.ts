@@ -1,7 +1,10 @@
 import type { IMemoryStore } from '@fluid/ui'
 import { lsGet, lsSet } from '@fluid/ui'
-import type { LanguageMemoryData, WordRecord } from './types'
-
+import type {
+  LanguageMemoryData,
+  WordRecord,
+  LearningPlan,
+} from './types'
 function storageKey(language: string) {
   return `fluid_lang_${language}`
 }
@@ -16,6 +19,7 @@ function emptyData(): LanguageMemoryData {
     words: {},
     userPreferences: null,
     totalStudyTimeSeconds: 0,
+    learningPlan: null,
   }
 }
 
@@ -66,6 +70,12 @@ export class LanguageMemoryStore implements IMemoryStore {
   getData(): LanguageMemoryData | null {
     return lsGet<LanguageMemoryData>(storageKey(this.language))
   }
+  getPlan(): LearningPlan | null {
+    const data =
+      lsGet<LanguageMemoryData>(storageKey(this.language))
+
+    return data?.learningPlan ?? null
+  }
 
   startStudyTimer(): void {
     this.studyStartTime = Date.now()
@@ -85,7 +95,9 @@ export class LanguageMemoryStore implements IMemoryStore {
 
   getContext(): string | null {
     const data = lsGet<LanguageMemoryData>(storageKey(this.language))
-    if (!data || data.sessionCount === 0) return null
+    if (!data) return null
+    // Brand-new learner with no plan yet — nothing useful to inject.
+    if (data.sessionCount === 0 && !data.learningPlan) return null
 
     const weakWords = Object.entries(data.words)
       .filter(([, w]) => w.incorrectCount > w.correctCount)
@@ -97,12 +109,29 @@ export class LanguageMemoryStore implements IMemoryStore {
       ? Math.floor((Date.now() - data.lastSessionDate) / 86_400_000)
       : null
 
+    // Include the [id] so the agent can reference a specific milestone when
+    // advancing progress; ▶ marks the milestone currently in progress.
+    const roadmap = data.learningPlan?.milestones
+      ?.map(m => {
+        const icon =
+          m.status === 'completed'
+            ? '✓'
+            : m.status === 'in_progress'
+              ? '▶'
+              : '○'
+
+        return `${icon} [${m.id}] ${m.title}`
+      })
+      .join('\n')
+
     const lines = [
-      `Sessions completed: ${data.sessionCount}`,
-      `Inferred level: ${inferLevel(data)}`,
+      data.sessionCount > 0 ? `Sessions completed: ${data.sessionCount}` : null,
+      data.sessionCount > 0 ? `Inferred level: ${inferLevel(data)}` : null,
       data.userPreferences ? `Learner preferences:\n${data.userPreferences}` : null,
       weakWords.length > 0 ? `Words to revisit: ${weakWords.join(', ')}` : null,
       daysSinceLast !== null ? `Days since last session: ${daysSinceLast}` : null,
+      data.learningPlan ? `Current goal: ${data.learningPlan.goal}` : null,
+      roadmap ? `Roadmap (▶ = current milestone):\n${roadmap}` : null,
     ].filter(Boolean)
 
     return lines.join('\n')
@@ -144,6 +173,53 @@ export class LanguageMemoryStore implements IMemoryStore {
   updatePreferences(preferences: string): void {
     const data = lsGet<LanguageMemoryData>(storageKey(this.language)) ?? emptyData()
     data.userPreferences = preferences
+    lsSet(storageKey(this.language), data)
+  }
+  setPlan(plan: Omit<LearningPlan, 'createdAt' | 'updatedAt'>): void {
+    const data =
+      lsGet<LanguageMemoryData>(storageKey(this.language))
+      ?? emptyData()
+
+    const now = Date.now()
+    data.learningPlan = {
+      ...plan,
+      // Store owns the timestamps; preserve createdAt if a plan already exists.
+      createdAt: data.learningPlan?.createdAt ?? now,
+      updatedAt: now,
+    }
+
+    lsSet(storageKey(this.language), data)
+  }
+  completeMilestone(id: string): void {
+    const data =
+      lsGet<LanguageMemoryData>(storageKey(this.language))
+      ?? emptyData()
+
+    if (!data.learningPlan) return
+
+    const index =
+      data.learningPlan.milestones.findIndex(
+        m => m.id === id,
+      )
+
+    if (index === -1) return
+
+    data.learningPlan.milestones[index].status =
+      'completed'
+
+    const next =
+      data.learningPlan.milestones[index + 1]
+
+    if (next) {
+      next.status = 'in_progress'
+      data.learningPlan.currentMilestoneId =
+        next.id
+    } else {
+      data.learningPlan.currentMilestoneId = null
+    }
+
+    data.learningPlan.updatedAt = Date.now()
+
     lsSet(storageKey(this.language), data)
   }
 

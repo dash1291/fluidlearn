@@ -7,6 +7,7 @@ import { MultipleChoice } from './components/MultipleChoice'
 import { FillBlank } from './components/FillBlank'
 import { TranslationChallenge } from './components/TranslationChallenge'
 import { SentenceArrange } from './components/SentenceArrange'
+import { LearningPlanCard } from './components/LearningPlanCard'
 
 export const languageComponentRegistry: ComponentRegistry = {
   show_lesson: LessonCard,
@@ -17,4 +18,6 @@ export const languageComponentRegistry: ComponentRegistry = {
   show_fill_blank: FillBlank,
   show_translation: TranslationChallenge,
   show_arrange: SentenceArrange,
+  set_learning_plan: LearningPlanCard,
+  update_learning_plan: LearningPlanCard,
 }
