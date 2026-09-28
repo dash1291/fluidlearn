@@ -155,6 +155,25 @@ body {
 .bubble-assistant h1:first-child, .bubble-assistant h2:first-child, .bubble-assistant h3:first-child, .bubble-assistant h4:first-child {
   margin-top: 0;
 }
+.bubble-assistant table {
+  border-collapse: collapse;
+  margin: 6px 0 10px;
+  font-size: 13px;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.bubble-assistant th, .bubble-assistant td {
+  border: 1px solid var(--color-border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.bubble-assistant th {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
 
 .bubble-thinking {
   padding: 14px 18px;
