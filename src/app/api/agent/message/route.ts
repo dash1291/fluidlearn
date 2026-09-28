@@ -20,8 +20,8 @@ function getUser(request: Request): Promise<{ id: string } | null> {
   return pending
 }
 
-// Curriculum design runs inside a tool call and can take a few minutes.
-export const maxDuration = 600
+// Curriculum design runs inside a tool call; 300 is the Hobby plan ceiling.
+export const maxDuration = 300
 
 export const POST = createAgentRoute({
   provider: 'anthropic',
