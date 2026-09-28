@@ -173,6 +173,7 @@ const UNIT_PRINCIPLES = `Principles:
 - Keep notes to one short clause each. The tutor expands on them in conversation.
 - Every phrase carries native script, the plan's romanisation, and English. The romanisation is a reading aid, kept consistent across units.
 - Flag regional variation or low confidence once, in uncertainties, rather than hedging inside the material.
+- The exercise progression never checks recognition of words right after presenting them. Once the goal phrases and vocabulary are shown, the learner uses them in sentences: fill in the blank, translation into the target language, arrange, the production tasks, the dialogue. Flashcards and word-level multiple choice appear only as review of earlier units.
 
 Available exercise types for the progression: ${EXERCISE_TYPES}.`
 

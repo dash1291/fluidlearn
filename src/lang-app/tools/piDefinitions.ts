@@ -124,6 +124,23 @@ export interface LanguageToolContext {
 export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {}): AgentTool<any>[] {
   const { language, memoryContext, plan } = ctx
   const languageName = (language && getLanguage(language)?.name) || language || 'the target language'
+
+  // Words presented by a vocabulary or lesson card earlier in this same turn.
+  // A recall exercise on one of them tests nothing, so it is refused.
+  const introduced = new Set<string>()
+  const norm = (s: string | undefined) => (s ?? '').trim().toLowerCase()
+  const introduce = (...words: (string | undefined)[]) => {
+    for (const w of words) if (norm(w)) introduced.add(norm(w))
+  }
+  const rejectIfJustIntroduced = (exercise: string, ...candidates: (string | undefined)[]) => {
+    const hit = candidates.find(c => introduced.has(norm(c)))
+    if (hit) {
+      throw new Error(
+        `"${hit}" was introduced by a card earlier in this turn, so a ${exercise} on it tests nothing. Use it in a sentence instead (show_fill_blank, show_translation to_target with a phrase, show_arrange), and keep single-word recall for words from earlier sessions.`,
+      )
+    }
+  }
+
   return [
     {
       name: 'show_lesson',
@@ -144,7 +161,11 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
           ),
         ),
       }),
-      execute: async (toolCallId, params) => displayed(toolCallId, 'show_lesson', params, send),
+      execute: async (toolCallId, params) => {
+        const p = params as { examples?: { native: string; translation: string }[] }
+        p.examples?.forEach(e => introduce(e.native, e.translation))
+        return displayed(toolCallId, 'show_lesson', params, send)
+      },
     },
 
     {
@@ -171,8 +192,9 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
         ),
       }),
       execute: async (toolCallId, params) => {
-        const p = params as { words: { word: string; tts_text?: string }[] }
+        const p = params as { words: { word: string; tts_text?: string; translation: string }[] }
         requireNativeTtsText(language, p.words.map(w => ({ display: w.word, tts: w.tts_text })))
+        p.words.forEach(w => introduce(w.word, w.tts_text, w.translation))
         return displayed(toolCallId, 'show_vocabulary', params, send)
       },
     },
@@ -203,8 +225,9 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
         ),
       }),
       execute: async (toolCallId, params) => {
-        const p = params as { front: string; tts_text?: string }
+        const p = params as { front: string; tts_text?: string; back: string }
         requireNativeTtsText(language, [{ display: p.front, tts: p.tts_text }])
+        rejectIfJustIntroduced('flashcard', p.front, p.tts_text, p.back)
         return waitForUser(toolCallId, 'show_flashcard', params, send)
       },
     },
@@ -247,7 +270,9 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
         ),
       }),
       execute: async (toolCallId, params) => {
-        validateMultipleChoice(params as { question: string; options: string[]; correct_index: number })
+        const p = params as { question: string; options: string[]; correct_index: number }
+        validateMultipleChoice(p)
+        rejectIfJustIntroduced('word-level multiple choice', p.options[p.correct_index])
         return waitForUser(toolCallId, 'show_multiple_choice', params, send)
       },
     },
@@ -289,8 +314,11 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
           Type.Array(Type.String(), { description: 'Other valid translations' }),
         ),
       }),
-      execute: async (toolCallId, params) =>
-        waitForUser(toolCallId, 'show_translation', params, send),
+      execute: async (toolCallId, params) => {
+        const p = params as { prompt: string; correct_answer: string }
+        rejectIfJustIntroduced('single-word translation', p.prompt, p.correct_answer)
+        return waitForUser(toolCallId, 'show_translation', params, send)
+      },
     },
 
     {
