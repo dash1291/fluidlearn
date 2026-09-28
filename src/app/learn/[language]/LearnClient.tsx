@@ -7,6 +7,7 @@ import { LanguageMemoryStore } from '@/lang-app/memory/store'
 import { createClient } from '@/lib/supabase/client'
 import { lsSet } from '@fluid/ui'
 import { StudyTimer } from './StudyTimer'
+import { VocabularyPanel } from './VocabularyPanel'
 import type { LanguageMemoryData, DesignedPlan, UnitDetail } from '@/lang-app/memory/types'
 
 interface Props {
@@ -111,11 +112,21 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
         plan: memoryStore.getPlan(),
       }),
       startTrigger: '__lesson_start__',
+      onToolCall: (toolName: string, input: Record<string, unknown>) => {
+        if (toolName === 'show_vocabulary' && Array.isArray(input.words)) {
+          memoryStore.recordVocabulary(
+            input.words as { word: string; translation: string; pronunciation?: string }[],
+          )
+          persistMemory()
+        }
+      },
       onExerciseResult: (
         toolName: string,
         input: Record<string, unknown>,
         result: unknown,
       ) => {
+
+        if (toolName === 'ask_choice') return
 
         if (toolName === 'set_learning_plan') {
           // The tool call event carries the designed plan; a replay from history
@@ -206,7 +217,12 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
       agentConfig={agentConfig}
       registry={languageComponentRegistry}
       placeholder={`Message your ${languageName} tutor...`}
-      toolbarRight={<StudyTimer initialTotalSeconds={initialTotalSeconds} />}
+      toolbarRight={
+        <>
+          <VocabularyPanel store={memoryStore} languageName={languageName} />
+          <StudyTimer initialTotalSeconds={initialTotalSeconds} />
+        </>
+      }
     />
   )
 }

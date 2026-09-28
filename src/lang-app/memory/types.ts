@@ -102,6 +102,13 @@ export interface DesignedPlan {
   designedBy: string
 }
 
+export interface VocabularyEntry {
+  word: string
+  translation: string
+  pronunciation?: string
+  firstSeen: number
+}
+
 export interface LanguageMemoryData {
   sessionCount: number
   lastSessionDate: number | null
@@ -112,4 +119,5 @@ export interface LanguageMemoryData {
   userPreferences: string | null
   totalStudyTimeSeconds: number
   learningPlan: LearningPlan | null
+  vocabulary?: Record<string, VocabularyEntry>
 }

@@ -175,6 +175,83 @@ body {
 }
 
 
+.choice-description {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.vocab-button {
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-card);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.vocab-button:hover { background: var(--color-surface); }
+
+.vocab-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 50;
+}
+.vocab-panel {
+  width: min(440px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--color-card);
+  padding: 16px;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+}
+.vocab-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.vocab-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.vocab-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.vocab-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+.vocab-empty { color: var(--color-text-muted); font-size: 13px; }
+.vocab-section { margin-bottom: 18px; }
+.vocab-section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin: 0 0 6px;
+}
+.vocab-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vocab-table td { padding: 5px 6px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.vocab-native { font-weight: 500; }
+.vocab-roman { color: var(--color-text-muted); font-style: italic; }
+.vocab-score { color: var(--color-text-muted); text-align: right; }
+.vocab-weak .vocab-native { color: var(--color-wrong); }
+
 .bubble-thinking {
   padding: 14px 18px;
 }

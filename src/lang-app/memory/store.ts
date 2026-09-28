@@ -9,6 +9,7 @@ import type {
   Unit,
   UnitDetail,
   Phrase,
+  VocabularyEntry,
 } from './types'
 import { findUnit, nextUnitAfter } from '@/lang-app/plan/progress'
 
@@ -228,6 +229,45 @@ export class LanguageMemoryStore implements IMemoryStore {
     }
 
     lsSet(storageKey(this.language), data)
+  }
+
+  recordVocabulary(words: { word: string; translation: string; pronunciation?: string }[]): void {
+    const data = this.getData() ?? emptyData()
+    const vocabulary = data.vocabulary ?? {}
+    for (const w of words) {
+      const key = w.word.trim().toLowerCase()
+      if (!key || vocabulary[key]) continue
+      vocabulary[key] = {
+        word: w.word,
+        translation: w.translation,
+        ...(w.pronunciation ? { pronunciation: w.pronunciation } : {}),
+        firstSeen: Date.now(),
+      }
+    }
+    data.vocabulary = vocabulary
+    lsSet(storageKey(this.language), data)
+  }
+
+  // Everything the learner has met so far: phrases from units they have
+  // started, words shown on vocabulary cards, and words scored in exercises.
+  getVocabulary(): {
+    fromPlan: (Phrase & { unitId: string })[]
+    fromCards: VocabularyEntry[]
+    practised: { word: string; correct: number; incorrect: number }[]
+  } {
+    const data = this.getData()
+    const fromPlan: (Phrase & { unitId: string })[] = []
+    for (const m of data?.learningPlan?.milestones ?? []) {
+      for (const u of m.units ?? []) {
+        if (u.status === 'pending' || !u.detail) continue
+        for (const p of [...u.detail.goalPhrases, ...u.detail.vocabulary]) fromPlan.push({ ...p, unitId: u.id })
+      }
+    }
+    const fromCards = Object.values(data?.vocabulary ?? {}).sort((a, b) => a.firstSeen - b.firstSeen)
+    const practised = Object.entries(data?.words ?? {})
+      .map(([word, w]) => ({ word, correct: w.correctCount, incorrect: w.incorrectCount }))
+      .sort((a, b) => b.incorrect - a.incorrect || b.correct - a.correct)
+    return { fromPlan, fromCards, practised }
   }
 
   getPreferences(): string | null {
