@@ -39,13 +39,26 @@ function inferLevel(data: LanguageMemoryData): LanguageMemoryData['inferredLevel
   return 'beginner'
 }
 
-// Extract the word being practiced from a tool call
-function extractWord(toolName: string, input: Record<string, unknown>): string | null {
+const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v : undefined)
+
+// The word being practised in a tool call, with its English meaning. Whole
+// sentences are not vocabulary, so translation exercises count only when the
+// answer is at most two words.
+function extractWord(toolName: string, input: Record<string, unknown>): { word: string; meaning?: string } | null {
   switch (toolName) {
-    case 'show_flashcard':
-      return typeof input.front === 'string' ? input.front : null
-    case 'show_fill_blank':
-      return typeof input.correct_answer === 'string' ? input.correct_answer : null
+    case 'show_flashcard': {
+      const word = str(input.front)
+      return word ? { word, meaning: str(input.back) } : null
+    }
+    case 'show_fill_blank': {
+      const word = str(input.correct_answer)
+      return word ? { word, meaning: str(input.answer_meaning) } : null
+    }
+    case 'show_translation': {
+      const word = str(input.correct_answer)
+      if (!word || input.direction !== 'to_target' || word.trim().split(/\s+/).length > 2) return null
+      return { word, meaning: str(input.prompt) }
+    }
     default:
       return null
   }
@@ -212,8 +225,9 @@ export class LanguageMemoryStore implements IMemoryStore {
     const correct = isCorrectResult(toolName, result)
     if (correct) this.sessionCorrect++
 
-    const word = extractWord(toolName, input)
-    if (!word) return
+    const entry = extractWord(toolName, input)
+    if (!entry) return
+    const { word } = entry
 
     const data = this.getData() ?? emptyData()
     const existing: WordRecord = data.words[word] ?? {
@@ -222,8 +236,7 @@ export class LanguageMemoryStore implements IMemoryStore {
       lastSeen: Date.now(),
     }
 
-    const meaning =
-      toolName === 'show_flashcard' && typeof input.back === 'string' ? input.back : existing.meaning
+    const meaning = entry.meaning ?? existing.meaning
     data.words[word] = {
       correctCount: existing.correctCount + (correct ? 1 : 0),
       incorrectCount: existing.incorrectCount + (correct ? 0 : 1),
@@ -231,6 +244,16 @@ export class LanguageMemoryStore implements IMemoryStore {
       ...(meaning ? { meaning } : {}),
     }
 
+    lsSet(storageKey(this.language), data)
+  }
+
+  setWordMeanings(meanings: Record<string, string>): void {
+    const data = this.getData()
+    if (!data) return
+    for (const [word, meaning] of Object.entries(meanings)) {
+      const record = data.words[word]
+      if (record && !record.meaning && meaning.trim()) record.meaning = meaning.trim()
+    }
     lsSet(storageKey(this.language), data)
   }
 

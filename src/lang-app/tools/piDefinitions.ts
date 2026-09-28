@@ -287,6 +287,7 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
           description: 'Sentence with ___ for the blank. Use the learner\'s preferred script/romanization if they have expressed one.',
         }),
         correct_answer: Type.String({ description: 'The correct word or phrase for the blank, in the learner\'s preferred script/romanization.' }),
+        answer_meaning: Type.String({ description: 'English meaning of the word or phrase in the blank, on its own (not the whole sentence).' }),
         hint: Type.Optional(Type.String({ description: 'Optional hint shown below the sentence' })),
         translation: Type.Optional(
           Type.String({ description: 'English translation of the complete sentence' }),

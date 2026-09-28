@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { LanguageMemoryStore } from '@/lang-app/memory/store'
 
 interface Props {
@@ -10,8 +10,33 @@ interface Props {
 
 export function VocabularyPanel({ store, languageName }: Props) {
   const [open, setOpen] = useState(false)
+  const [version, setVersion] = useState(0)
   const vocab = open ? store.getVocabulary() : null
   const total = vocab ? vocab.fromPlan.length + vocab.fromCards.length : 0
+
+  // Words scored before their meaning was recorded get one looked up once.
+  useEffect(() => {
+    if (!open) return
+    const missing = store
+      .getVocabulary()
+      .practised.filter(w => !w.meaning)
+      .map(w => w.word)
+    if (missing.length === 0) return
+    fetch('/api/agent/word-meanings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ languageName, words: missing }),
+    })
+      .then(r => r.json())
+      .then(({ meanings }) => {
+        if (meanings && typeof meanings === 'object') {
+          store.setWordMeanings(meanings as Record<string, string>)
+          setVersion(v => v + 1)
+        }
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   return (
     <>
@@ -71,7 +96,7 @@ export function VocabularyPanel({ store, languageName }: Props) {
             )}
 
             {vocab.practised.length > 0 && (
-              <section className="vocab-section">
+              <section className="vocab-section" key={version}>
                 <h3>Practised in exercises</h3>
                 <table className="vocab-table">
                   <tbody>
