@@ -345,6 +345,24 @@ export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {})
       },
     },
     {
+      name: 'ask_choice',
+      label: 'Choice',
+      description:
+        'Offer the learner a small set of choices as buttons instead of asking in text: keep drilling or move on, pick a topic, yes or no. The result has `choice`, the label they tapped. Not for open-ended questions.',
+      parameters: Type.Object({
+        question: Type.String({ description: 'One short sentence.' }),
+        options: Type.Array(
+          Type.Object({
+            label: Type.String({ description: 'Two to five words, shown on the button.' }),
+            description: Type.Optional(Type.String({ description: 'Optional one-line detail under the label.' })),
+          }),
+          { minItems: 2, maxItems: 4 },
+        ),
+      }),
+      execute: async (toolCallId, params) => waitForUser(toolCallId, 'ask_choice', params, send),
+    },
+
+    {
       name: 'set_learning_plan',
       label: 'Set Learning Plan',
       description:
