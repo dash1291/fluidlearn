@@ -44,6 +44,53 @@ function requireNativeTtsText(
   }
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function containsPhrase(text: string, phrase: string): boolean {
+  const trimmed = phrase.trim()
+  if (trimmed.length < 2) return false
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(trimmed)}(?=$|[^\\p{L}\\p{N}])`, 'iu').test(text)
+}
+
+function sortedLower(items: string[]): string[] {
+  return items.map(w => w.trim().toLowerCase()).sort()
+}
+
+// Throwing returns the message to the agent as a tool error so it retries.
+function validateMultipleChoice(p: { question: string; options: string[]; correct_index: number }) {
+  if (!Number.isInteger(p.correct_index) || p.correct_index < 0 || p.correct_index >= p.options.length) {
+    throw new Error(`correct_index ${p.correct_index} is out of range for ${p.options.length} options.`)
+  }
+  if (new Set(sortedLower(p.options)).size !== p.options.length) {
+    throw new Error('Options must be distinct. Rewrite the question with four different options.')
+  }
+  const leaked = p.options.find(o => containsPhrase(p.question, o))
+  if (leaked) {
+    throw new Error(
+      `The option "${leaked}" appears in the question text, so the question gives away or contradicts its own answer. Ask in one direction only: either show the target-language word and offer English meanings, or show the English (or a number, picture description, etc.) and offer target-language words.`,
+    )
+  }
+}
+
+function validateFillBlank(p: { sentence_template: string; correct_answer: string }) {
+  if (!p.sentence_template.includes('___')) {
+    throw new Error('sentence_template must contain ___ where the blank goes.')
+  }
+  if (containsPhrase(p.sentence_template, p.correct_answer)) {
+    throw new Error(`The answer "${p.correct_answer}" already appears in the sentence. Remove it so the blank is the only place it occurs.`)
+  }
+}
+
+function validateArrange(p: { words: string[]; correct_order: string[] }) {
+  const a = sortedLower(p.words)
+  const b = sortedLower(p.correct_order)
+  if (a.length !== b.length || a.some((w, i) => w !== b[i])) {
+    throw new Error('words and correct_order must contain exactly the same tokens. Fix the mismatch and call again.')
+  }
+}
+
 export function createLanguageTools(send: SendFn, language?: string): AgentTool<any>[] {
   return [
     {
@@ -158,17 +205,19 @@ export function createLanguageTools(send: SendFn, language?: string): AgentTool<
       name: 'show_multiple_choice',
       label: 'Multiple Choice',
       description:
-        'Show a multiple choice question. Good for grammar checks and comprehension questions.',
+        'Show a multiple choice question. Good for grammar checks and comprehension questions. All options must be the same kind of thing the question asks for (all target-language words, or all English meanings, or all numbers), and the correct answer must not appear in the question text.',
       parameters: Type.Object({
         question: Type.String(),
         options: Type.Array(Type.String(), { minItems: 2, maxItems: 4 }),
-        correct_index: Type.Number({ description: 'Zero-based index of the correct option' }),
+        correct_index: Type.Integer({ description: 'Zero-based index of the correct option' }),
         explanation: Type.Optional(
           Type.String({ description: 'Brief explanation shown after answering' }),
         ),
       }),
-      execute: async (toolCallId, params) =>
-        waitForUser(toolCallId, 'show_multiple_choice', params, send),
+      execute: async (toolCallId, params) => {
+        validateMultipleChoice(params as { question: string; options: string[]; correct_index: number })
+        return waitForUser(toolCallId, 'show_multiple_choice', params, send)
+      },
     },
 
     {
@@ -186,8 +235,10 @@ export function createLanguageTools(send: SendFn, language?: string): AgentTool<
           Type.String({ description: 'English translation of the complete sentence' }),
         ),
       }),
-      execute: async (toolCallId, params) =>
-        waitForUser(toolCallId, 'show_fill_blank', params, send),
+      execute: async (toolCallId, params) => {
+        validateFillBlank(params as { sentence_template: string; correct_answer: string })
+        return waitForUser(toolCallId, 'show_fill_blank', params, send)
+      },
     },
 
     {
@@ -228,8 +279,10 @@ export function createLanguageTools(send: SendFn, language?: string): AgentTool<
           Type.String({ description: 'English translation of the complete sentence' }),
         ),
       }),
-      execute: async (toolCallId, params) =>
-        waitForUser(toolCallId, 'show_arrange', params, send),
+      execute: async (toolCallId, params) => {
+        validateArrange(params as { words: string[]; correct_order: string[] })
+        return waitForUser(toolCallId, 'show_arrange', params, send)
+      },
     },
     {
       name: 'set_learning_plan',

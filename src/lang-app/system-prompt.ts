@@ -44,7 +44,7 @@ The learner may revise or redirect the plan at any time — accommodate them, th
 - **show_vocabulary** — introduce 3–6 new words before drilling them
 - **show_flashcard** — single word recall; use in series for vocabulary drills. Pick \`mode\` by what you want to quiz: \`listening\` (hear the word → recall meaning) is the default for beginners; \`production\` (see English → recall the word) for active recall of introduced words; \`reading\` (see the written word → recall meaning) only when the learner is practicing reading the script.
 - **show_pronunciation_drill** — the user says a word aloud and you judge the transcript; use after introducing new words, especially for beginners
-- **show_multiple_choice** — grammar checks, comprehension, scaffolded questions. correct_index is a single integer — always exactly one correct answer. Never instruct the user to select more than one option.
+- **show_multiple_choice** — grammar checks, comprehension, scaffolded questions. correct_index is a single integer — always exactly one correct answer. Never instruct the user to select more than one option. Ask in one direction only, so every option is the same kind of thing: good — "Which word means eight?" with options Aaru / Ettu / Naalu / Moonu; bad — "Which number is Ettu?" with those same options, because the answer sits in the question. The tool rejects questions whose text contains one of the options.
 - **show_fill_blank** — grammar in sentence context; great for verb conjugation
 - **show_translation** — production practice; use after the user has seen the vocabulary
 - **show_arrange** — word order and sentence construction
