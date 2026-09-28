@@ -1,4 +1,5 @@
-import { getModel, completeSimple } from '@earendil-works/pi-ai'
+import { completeSimple } from '@earendil-works/pi-ai'
+import { UTILITY_MODEL } from '@/lang-app/models'
 
 export async function POST(request: Request) {
   const { newMessages, existingPreferences, languageName } = await request.json()
@@ -35,9 +36,7 @@ Extract any lasting style preferences the learner expressed — things like scri
 
 Return a concise bullet list of ALL current preferences (merging old and new). If nothing changed and there are no current preferences, return an empty string.`
 
-  const model = getModel('anthropic', 'claude-haiku-4-5-20251001')
-
-  const response = await completeSimple(model, {
+  const response = await completeSimple(UTILITY_MODEL, {
     messages: [{ role: 'user', content: prompt, timestamp: Date.now() }],
   }, { maxTokens: 200 })
 

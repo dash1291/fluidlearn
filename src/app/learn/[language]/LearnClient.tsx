@@ -7,7 +7,7 @@ import { LanguageMemoryStore } from '@/lang-app/memory/store'
 import { createClient } from '@/lib/supabase/client'
 import { lsSet } from '@fluid/ui'
 import { StudyTimer } from './StudyTimer'
-import type { LanguageMemoryData, Milestone } from '@/lang-app/memory/types'
+import type { LanguageMemoryData, DesignedPlan, UnitDetail } from '@/lang-app/memory/types'
 
 interface Props {
   language: string
@@ -108,6 +108,7 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
         language,
         languageName,
         memoryContext: memoryStore.getContext(),
+        plan: memoryStore.getPlan(),
       }),
       startTrigger: '__lesson_start__',
       onExerciseResult: (
@@ -117,35 +118,35 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
       ) => {
 
         if (toolName === 'set_learning_plan') {
-          const milestones: Milestone[] = (
-            (input.milestones as Array<{ id: string; title: string; description?: string }>) ?? []
-          ).map((m, index) => ({
-            ...m,
-            status: index === 0 ? 'in_progress' : 'pending',
-          }))
-
-          memoryStore.setPlan({
-            goal: input.goal as string,
-            isDefault: (input.isDefault as boolean) ?? false,
-            milestones,
-            currentMilestoneId: milestones[0]?.id ?? null,
-          })
-          persistMemory()
+          // The tool call event carries the designed plan; a replay from history
+          // carries only the tutor's request and must not overwrite the stored plan.
+          if (Array.isArray(input.milestones) && input.milestones.length > 0) {
+            memoryStore.setPlan(input as unknown as DesignedPlan)
+            persistMemory()
+          }
           return
         }
 
         if (toolName === 'update_learning_plan') {
-          // completedMilestoneId is a tool parameter, so it lives in `input`.
-          // Fall back to the current milestone when the agent omits it.
-          const completedId =
-            (input.completedMilestoneId as string | undefined) ??
-            memoryStore.getPlan()?.currentMilestoneId ??
-            undefined
+          const plan = memoryStore.getPlan()
+          const unitId = input.completedUnitId as string | undefined
+          const milestoneId = input.completedMilestoneId as string | undefined
+          const nextUnitId = input.nextUnitId as string | undefined
+          const nextUnitDetail = input.nextUnitDetail as UnitDetail | undefined
 
-          if (completedId) {
-            memoryStore.completeMilestone(completedId)
-            persistMemory()
+          if (unitId) {
+            memoryStore.completeUnit(unitId)
+          } else if (milestoneId) {
+            memoryStore.completeMilestone(milestoneId)
+          } else if (plan?.currentUnitId) {
+            memoryStore.completeUnit(plan.currentUnitId)
+          } else if (plan?.currentMilestoneId) {
+            memoryStore.completeMilestone(plan.currentMilestoneId)
+          } else {
+            return
           }
+          if (nextUnitId && nextUnitDetail) memoryStore.setUnitDetail(nextUnitId, nextUnitDetail)
+          persistMemory()
           return
         }
 

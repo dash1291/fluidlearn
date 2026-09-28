@@ -2,6 +2,8 @@ import { createAgentRoute } from '@fluid/ui'
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import { getSystemPrompt } from '@/lang-app/system-prompt'
 import { createLanguageTools } from '@/lang-app/tools/piDefinitions'
+import { TUTOR_MODEL } from '@/lang-app/models'
+import type { LearningPlan } from '@/lang-app/memory/types'
 import { createClient } from '@/lib/supabase/server'
 
 // Reuse one auth lookup across loadHistory and saveHistory in the same request.
@@ -18,16 +20,24 @@ function getUser(request: Request): Promise<{ id: string } | null> {
   return pending
 }
 
+// Curriculum design runs inside a tool call and can take a few minutes.
+export const maxDuration = 600
+
 export const POST = createAgentRoute({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-6',
+  model: TUTOR_MODEL,
   buildSystemPrompt: (params) =>
     getSystemPrompt(
       params.language as string,
       params.languageName as string,
       (params.memoryContext as string | null) ?? null,
     ),
-  buildTools: (params, send) => createLanguageTools(send, params.language as string | undefined),
+  buildTools: (params, send) =>
+    createLanguageTools(send, {
+      language: params.language as string | undefined,
+      memoryContext: params.memoryContext as string | null | undefined,
+      plan: params.plan as LearningPlan | null | undefined,
+    }),
   loadHistory: async (params, request) => {
     const user = await getUser(request)
     if (!user) return null

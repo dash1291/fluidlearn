@@ -22,10 +22,3 @@ export const SUPPORTED_LANGUAGES: Language[] = [
 export function getLanguage(code: string): Language | undefined {
   return SUPPORTED_LANGUAGES.find(l => l.code === code)
 }
-
-export type ProviderName = 'anthropic' | 'openai'
-
-export const LLM_CONFIG = {
-  provider: (process.env.LLM_PROVIDER ?? 'anthropic') as ProviderName,
-  model: process.env.LLM_MODEL ?? 'claude-sonnet-4-6',
-}

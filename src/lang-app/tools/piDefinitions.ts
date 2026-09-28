@@ -1,5 +1,10 @@
 import { Type } from '@earendil-works/pi-ai'
 import type { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core'
+import { getLanguage } from '@/lang-app/config'
+import { designPlan, expandUnit } from '@/lang-app/plan/designer'
+import { findUnit, nextUnitAfter } from '@/lang-app/plan/progress'
+import type { UnitLocation } from '@/lang-app/plan/progress'
+import type { LearnerBrief, LearningPlan, UnitDetail } from '@/lang-app/memory/types'
 
 type SendFn = (event: object) => void
 
@@ -91,7 +96,34 @@ function validateArrange(p: { words: string[]; correct_order: string[] }) {
   }
 }
 
-export function createLanguageTools(send: SendFn, language?: string): AgentTool<any>[] {
+// Mirrors what the client will do with the same arguments, so the unit that
+// gets prepared here is the one the learner lands on.
+function unitAfterCompletion(
+  plan: LearningPlan,
+  p: { completedUnitId?: string; completedMilestoneId?: string },
+): UnitLocation | null {
+  if (p.completedMilestoneId) {
+    const index = plan.milestones.findIndex(m => m.id === p.completedMilestoneId)
+    if (index === -1) return null
+    for (const milestone of plan.milestones.slice(index + 1)) {
+      const unit = milestone.units?.find(u => u.status !== 'completed')
+      if (unit) return { milestone, unit }
+    }
+    return null
+  }
+  const unitId = p.completedUnitId ?? plan.currentUnitId
+  return unitId && findUnit(plan, unitId) ? nextUnitAfter(plan, unitId) : null
+}
+
+export interface LanguageToolContext {
+  language?: string
+  memoryContext?: string | null
+  plan?: LearningPlan | null
+}
+
+export function createLanguageTools(send: SendFn, ctx: LanguageToolContext = {}): AgentTool<any>[] {
+  const { language, memoryContext, plan } = ctx
+  const languageName = (language && getLanguage(language)?.name) || language || 'the target language'
   return [
     {
       name: 'show_lesson',
@@ -288,44 +320,103 @@ export function createLanguageTools(send: SendFn, language?: string): AgentTool<
       name: 'set_learning_plan',
       label: 'Set Learning Plan',
       description:
-        "Create the learner's long-term roadmap. Call this once near the start, after learning their level and goal — only when no roadmap already exists in the Returning Learner Context. You decide the milestone structure.",
+        "Commission the learner's long-term roadmap. Call this once, after learning their goal and level, and only when no roadmap exists in the Returning Learner Context. A specialist curriculum designer turns your inputs into a full unit-by-unit plan, which takes a few minutes; the plan then appears in your context from the next turn on.",
       parameters: Type.Object({
         goal: Type.String({
-          description: "The learner's high-level goal in plain language, e.g. \"hold a basic conversation while travelling\".",
+          description: "The learner's high-level goal in plain language, e.g. \"hold a basic conversation with my in-laws\".",
         }),
         isDefault: Type.Boolean({
           description:
-            'true if you adopted a standard language-proficiency roadmap because the learner gave no specific goal; false if the plan is tailored to a goal they stated.',
+            'true if you adopted a standard general-proficiency goal because the learner gave none; false if the goal is theirs.',
         }),
-        milestones: Type.Array(
-          Type.Object({
-            id: Type.String({ description: 'A short, stable id you assign, e.g. "m1", "m2". Reused later to mark progress.' }),
-            title: Type.String({ description: 'Concise milestone title, e.g. "Greetings & introductions".' }),
-            description: Type.Optional(
-              Type.String({ description: 'Optional one-line detail of what the milestone covers.' }),
-            ),
+        level: Type.String({
+          description: "The learner's self-assessed starting level in a few words, e.g. \"complete beginner\", \"understands some spoken Tamil but cannot speak\".",
+        }),
+        timeAvailable: Type.Optional(
+          Type.String({ description: 'Only if the learner stated one, e.g. "6 weeks, 20 minutes a day". Omit otherwise.' }),
+        ),
+        register: Type.Optional(
+          Type.String({ description: 'Only if the learner stated one: spoken/colloquial, formal/written, or both. Omit otherwise.' }),
+        ),
+        prioritySituations: Type.Optional(
+          Type.Array(Type.String(), {
+            description: 'Situations the learner wants to handle, in their order of priority, only if they gave them.',
           }),
-          { minItems: 3, maxItems: 8 },
+        ),
+        exclusions: Type.Optional(
+          Type.Array(Type.String(), { description: 'Things the learner explicitly does not need, e.g. "reading the script".' }),
+        ),
+        notes: Type.Optional(
+          Type.String({
+            description:
+              'Everything else the designer should know: script or romanisation preference, who they will speak with, interests, prior languages.',
+          }),
         ),
       }),
-      execute: async (toolCallId, params) =>
-        waitForUser(toolCallId, 'set_learning_plan', params, send),
+      execute: async (toolCallId, params) => {
+        const p = params as { goal: string; isDefault: boolean; level: string } & LearnerBrief
+        const designed = await designPlan({
+          language: language ?? 'unknown',
+          languageName,
+          goal: p.goal,
+          isDefault: p.isDefault,
+          level: p.level,
+          brief: {
+            ...(p.timeAvailable ? { timeAvailable: p.timeAvailable } : {}),
+            ...(p.register ? { register: p.register } : {}),
+            ...(p.prioritySituations?.length ? { prioritySituations: p.prioritySituations } : {}),
+            ...(p.exclusions?.length ? { exclusions: p.exclusions } : {}),
+            ...(p.notes ? { notes: p.notes } : {}),
+          },
+          learnerContext: memoryContext ?? null,
+        })
+        return waitForUser(toolCallId, 'set_learning_plan', designed, send)
+      },
     },
 
     {
       name: 'update_learning_plan',
       label: 'Update Learning Plan',
       description:
-        'Mark progress on the roadmap when the learner has demonstrated mastery of the current milestone. By default this advances the current milestone; pass completedMilestoneId to complete a specific one.',
+        "Record progress on the roadmap. Call it when the learner has met the current unit's mastery criteria; by default this completes the current unit. Pass completedUnitId to complete a specific unit, or completedMilestoneId to complete a whole milestone. The next unit's vocabulary and exercises are prepared as part of this call, which can take a minute or two; tell the learner before calling.",
       parameters: Type.Object({
+        completedUnitId: Type.Optional(
+          Type.String({ description: 'The [id] of the unit to mark complete, as shown in the roadmap.' }),
+        ),
         completedMilestoneId: Type.Optional(
-          Type.String({
-            description: 'The [id] of the milestone to mark complete, as shown in the roadmap. Omit to advance the current milestone.',
-          }),
+          Type.String({ description: 'The [id] of the milestone to mark complete, as shown in the roadmap.' }),
         ),
       }),
-      execute: async (toolCallId, params) =>
-        waitForUser(toolCallId, 'update_learning_plan', params, send),
+      execute: async (toolCallId, params) => {
+        const p = params as { completedUnitId?: string; completedMilestoneId?: string }
+        const args: {
+          completedUnitId?: string
+          completedMilestoneId?: string
+          nextUnitId?: string
+          nextUnitDetail?: UnitDetail
+        } = { ...p }
+
+        // Without a structured plan (anonymous session or a legacy roadmap
+        // without units) the client just advances whatever it has stored.
+        const next = plan ? unitAfterCompletion(plan, p) : null
+        if (next && !next.unit.detail) {
+          args.nextUnitId = next.unit.id
+          args.nextUnitDetail = await expandUnit(
+            {
+              language: language ?? 'unknown',
+              languageName,
+              goal: plan!.goal,
+              isDefault: plan!.isDefault,
+              level: plan!.level ?? 'unknown',
+              brief: plan!.brief ?? {},
+              learnerContext: memoryContext ?? null,
+            },
+            plan!,
+            next.unit.id,
+          )
+        }
+        return waitForUser(toolCallId, 'update_learning_plan', args, send)
+      },
     },
   ]
 }
