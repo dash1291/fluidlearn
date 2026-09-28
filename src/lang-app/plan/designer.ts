@@ -176,7 +176,15 @@ const UNIT_PRINCIPLES = `Principles:
 
 Available exercise types for the progression: ${EXERCISE_TYPES}.`
 
+// Thinking tokens count against maxTokens, so effort is what keeps a call
+// inside its budget. pi-ai cannot set effort for a model it does not know, so
+// it is injected into the request payload.
+const DESIGNER_EFFORT = process.env.DESIGNER_EFFORT ?? 'medium'
+
+class DesignOverflow extends Error {}
+
 // Streams of several minutes occasionally drop mid-way; one retry covers that.
+// An overflow is deterministic, so it is not retried.
 async function callDesigner(
   systemPrompt: string,
   userPrompt: string,
@@ -186,6 +194,7 @@ async function callDesigner(
   try {
     return await callDesignerOnce(systemPrompt, userPrompt, tool, maxTokens)
   } catch (err) {
+    if (err instanceof DesignOverflow) throw err
     console.warn('Curriculum design attempt failed, retrying once:', err instanceof Error ? err.message : err)
     return callDesignerOnce(systemPrompt, userPrompt, tool, maxTokens)
   }
@@ -197,6 +206,7 @@ async function callDesignerOnce(
   tool: Tool,
   maxTokens: number,
 ): Promise<Record<string, unknown>> {
+  const started = Date.now()
   const response: AssistantMessage = await completeSimple(
     DESIGNER_MODEL,
     {
@@ -204,14 +214,21 @@ async function callDesignerOnce(
       messages: [{ role: 'user', content: userPrompt, timestamp: Date.now() }],
       tools: [tool],
     },
-    { maxTokens, apiKey: getEnvApiKey('anthropic') },
+    {
+      maxTokens,
+      apiKey: getEnvApiKey('anthropic'),
+      onPayload: payload => ({ ...(payload as Record<string, unknown>), output_config: { effort: DESIGNER_EFFORT } }),
+    },
+  )
+  console.log(
+    `[designer] ${tool.name}: ${Math.round((Date.now() - started) / 1000)}s, ${response.usage.input} in / ${response.usage.output} out, stop=${response.stopReason}`,
   )
 
   if (response.stopReason === 'error') {
     throw new Error(`Curriculum design failed: ${response.errorMessage ?? 'unknown error'}`)
   }
   if (response.stopReason === 'length') {
-    throw new Error('Curriculum design failed: the designer ran out of room before finishing.')
+    throw new DesignOverflow('Curriculum design failed: the designer ran out of room before finishing.')
   }
 
   const call = response.content.find(
@@ -312,7 +329,7 @@ Design one unit of an existing roadmap so the tutor can teach it without further
 ${UNIT_PRINCIPLES}`,
     userPrompt,
     SUBMIT_UNIT,
-    12_000,
+    20_000,
   )
   return toUnitDetail(args)
 }
