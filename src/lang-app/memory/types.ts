@@ -2,6 +2,7 @@ export interface WordRecord {
   correctCount: number
   incorrectCount: number
   lastSeen: number
+  meaning?: string
 }
 
 export type ProgressStatus = 'pending' | 'in_progress' | 'completed'

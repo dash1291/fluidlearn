@@ -78,7 +78,8 @@ export function VocabularyPanel({ store, languageName }: Props) {
                     {vocab.practised.map(w => (
                       <tr key={w.word} className={w.incorrect > w.correct ? 'vocab-weak' : undefined}>
                         <td className="vocab-native">{w.word}</td>
-                        <td colSpan={2} className="vocab-score">
+                        <td>{w.meaning ?? ''}</td>
+                        <td className="vocab-score">
                           {w.correct} right, {w.incorrect} wrong
                         </td>
                       </tr>

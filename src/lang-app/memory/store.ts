@@ -222,10 +222,13 @@ export class LanguageMemoryStore implements IMemoryStore {
       lastSeen: Date.now(),
     }
 
+    const meaning =
+      toolName === 'show_flashcard' && typeof input.back === 'string' ? input.back : existing.meaning
     data.words[word] = {
       correctCount: existing.correctCount + (correct ? 1 : 0),
       incorrectCount: existing.incorrectCount + (correct ? 0 : 1),
       lastSeen: Date.now(),
+      ...(meaning ? { meaning } : {}),
     }
 
     lsSet(storageKey(this.language), data)
@@ -253,7 +256,7 @@ export class LanguageMemoryStore implements IMemoryStore {
   getVocabulary(): {
     fromPlan: (Phrase & { unitId: string })[]
     fromCards: VocabularyEntry[]
-    practised: { word: string; correct: number; incorrect: number }[]
+    practised: { word: string; meaning: string | null; correct: number; incorrect: number }[]
   } {
     const data = this.getData()
     const fromPlan: (Phrase & { unitId: string })[] = []
@@ -264,8 +267,21 @@ export class LanguageMemoryStore implements IMemoryStore {
       }
     }
     const fromCards = Object.values(data?.vocabulary ?? {}).sort((a, b) => a.firstSeen - b.firstSeen)
+
+    const meanings = new Map<string, string>()
+    for (const p of fromPlan) {
+      meanings.set(p.native.trim().toLowerCase(), p.english)
+      meanings.set(p.romanized.trim().toLowerCase(), p.english)
+    }
+    for (const c of fromCards) meanings.set(c.word.trim().toLowerCase(), c.translation)
+
     const practised = Object.entries(data?.words ?? {})
-      .map(([word, w]) => ({ word, correct: w.correctCount, incorrect: w.incorrectCount }))
+      .map(([word, w]) => ({
+        word,
+        meaning: w.meaning ?? meanings.get(word.trim().toLowerCase()) ?? null,
+        correct: w.correctCount,
+        incorrect: w.incorrectCount,
+      }))
       .sort((a, b) => b.incorrect - a.incorrect || b.correct - a.correct)
     return { fromPlan, fromCards, practised }
   }
