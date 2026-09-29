@@ -74,6 +74,11 @@ function isCorrectResult(toolName: string, result: unknown): boolean {
   return r.is_correct === true
 }
 
+function lastActivity(data: LanguageMemoryData): number {
+  const wordTimes = Object.values(data.words ?? {}).map(w => w.lastSeen)
+  return Math.max(data.lastSessionDate ?? 0, data.learningPlan?.updatedAt ?? 0, ...wordTimes)
+}
+
 const STATUS_ICON = { completed: '✓', in_progress: '▶', pending: '○' } as const
 
 function bulletList(items: string[]): string {
@@ -148,10 +153,13 @@ export class LanguageMemoryStore implements IMemoryStore {
   private sessionCorrect = 0
   private studyStartTime: number | null = null
 
+  // localStorage is the working copy; the server copy replaces it when it is
+  // at least as recent, so progress made on another device is not shadowed.
   constructor(language: string, initialData?: LanguageMemoryData) {
     this.language = language
-    // Seed localStorage from server-fetched data only if nothing is stored locally yet
-    if (initialData && !lsGet<LanguageMemoryData>(storageKey(language))) {
+    if (!initialData) return
+    const local = lsGet<LanguageMemoryData>(storageKey(language))
+    if (!local || lastActivity(initialData) >= lastActivity(local)) {
       lsSet(storageKey(language), initialData)
     }
   }
