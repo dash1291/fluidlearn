@@ -236,23 +236,28 @@ export class LanguageMemoryStore implements IMemoryStore {
       lastSeen: Date.now(),
     }
 
-    const meaning = entry.meaning ?? existing.meaning
+    const fromExercise = entry.meaning ?? (existing.meaningSource === 'exercise' ? existing.meaning : undefined)
+    const meaning = fromExercise ?? existing.meaning
     data.words[word] = {
       correctCount: existing.correctCount + (correct ? 1 : 0),
       incorrectCount: existing.incorrectCount + (correct ? 0 : 1),
       lastSeen: Date.now(),
-      ...(meaning ? { meaning } : {}),
+      ...(meaning ? { meaning, meaningSource: fromExercise ? 'exercise' : existing.meaningSource } : {}),
     }
 
     lsSet(storageKey(this.language), data)
   }
 
+  // A meaning supplied by the exercise itself is kept; a looked-up one may be
+  // replaced by a later lookup.
   setWordMeanings(meanings: Record<string, string>): void {
     const data = this.getData()
     if (!data) return
     for (const [word, meaning] of Object.entries(meanings)) {
       const record = data.words[word]
-      if (record && !record.meaning && meaning.trim()) record.meaning = meaning.trim()
+      if (!record || record.meaningSource === 'exercise' || !meaning.trim()) continue
+      record.meaning = meaning.trim()
+      record.meaningSource = 'lookup'
     }
     lsSet(storageKey(this.language), data)
   }
@@ -279,7 +284,7 @@ export class LanguageMemoryStore implements IMemoryStore {
   getVocabulary(): {
     fromPlan: (Phrase & { unitId: string })[]
     fromCards: VocabularyEntry[]
-    practised: { word: string; meaning: string | null; correct: number; incorrect: number }[]
+    practised: { word: string; meaning: string | null; needsLookup: boolean; correct: number; incorrect: number }[]
   } {
     const data = this.getData()
     const fromPlan: (Phrase & { unitId: string })[] = []
@@ -302,6 +307,9 @@ export class LanguageMemoryStore implements IMemoryStore {
       .map(([word, w]) => ({
         word,
         meaning: w.meaning ?? meanings.get(word.trim().toLowerCase()) ?? null,
+        // Meanings recorded before sources were tracked came from an unreliable
+        // lookup and are checked once more.
+        needsLookup: !w.meaning || !w.meaningSource,
         correct: w.correctCount,
         incorrect: w.incorrectCount,
       }))

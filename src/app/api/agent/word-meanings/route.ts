@@ -1,5 +1,5 @@
 import { completeSimple, getEnvApiKey } from '@earendil-works/pi-ai'
-import { UTILITY_MODEL } from '@/lang-app/models'
+import { TUTOR_MODEL } from '@/lang-app/models'
 
 export async function POST(request: Request) {
   const { languageName, words } = (await request.json()) as { languageName?: string; words?: unknown }
@@ -8,14 +8,16 @@ export async function POST(request: Request) {
     : []
   if (list.length === 0 || !languageName) return Response.json({ meanings: {} })
 
-  const prompt = `Give the English meaning of each ${languageName} word or short phrase below. They may be in native script or romanised. Answer with a JSON object mapping each input string exactly as given to a short English meaning (a few words). No other text.
+  const prompt = `You are an expert in ${languageName} as it is actually spoken. Give the English meaning of each ${languageName} word or short phrase below, exactly as written. Many are conjugated verb forms in casual romanisation: identify the verb stem, then the tense, person, number and gender the ending marks, and give the meaning of that exact form, e.g. "we came", "she is doing", "I am coming". Do not confuse similar stems (for example bar- come vs bare- write). If a form is genuinely ambiguous, give the most common reading.
+
+Answer with a JSON object mapping each input string exactly as given to a short English meaning. No other text.
 
 ${list.map(w => JSON.stringify(w)).join('\n')}`
 
   const response = await completeSimple(
-    UTILITY_MODEL,
+    TUTOR_MODEL,
     { messages: [{ role: 'user', content: prompt, timestamp: Date.now() }] },
-    { maxTokens: 2000, apiKey: getEnvApiKey('anthropic') },
+    { maxTokens: 4000, apiKey: getEnvApiKey('anthropic') },
   )
 
   const text = response.content

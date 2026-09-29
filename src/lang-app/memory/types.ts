@@ -3,6 +3,7 @@ export interface WordRecord {
   incorrectCount: number
   lastSeen: number
   meaning?: string
+  meaningSource?: 'exercise' | 'lookup'
 }
 
 export type ProgressStatus = 'pending' | 'in_progress' | 'completed'

@@ -19,7 +19,7 @@ export function VocabularyPanel({ store, languageName }: Props) {
     if (!open) return
     const missing = store
       .getVocabulary()
-      .practised.filter(w => !w.meaning)
+      .practised.filter(w => w.needsLookup)
       .map(w => w.word)
     if (missing.length === 0) return
     fetch('/api/agent/word-meanings', {
