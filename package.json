@@ -10,7 +10,7 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.74.0",
     "@earendil-works/pi-ai": "^0.74.0",
-    "@fluid/ui": "github:dash1291/flUId",
+    "@fluid/ui": "github:dash1291/flUId#feat/history-compaction",
     "@opentelemetry/api": "^1.9.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
