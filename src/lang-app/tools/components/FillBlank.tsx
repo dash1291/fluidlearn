@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@fluid/ui'
 import { isSkipped } from '@fluid/ui'
+import { gradeFillBlank } from '@/lang-app/grading/grade'
+import type { Graded } from '@/lang-app/grading/grade'
+import { useLanguage } from '@/lang-app/grading/LanguageContext'
 
 interface FillBlankInput {
   sentence_template: string
@@ -11,17 +14,18 @@ interface FillBlankInput {
   translation?: string
 }
 
-interface FillBlankResult {
+interface FillBlankResult extends Partial<Graded> {
   answer: string
 }
 
 export function FillBlank({ input, submitted, result, onSubmit }: ExerciseComponentProps<FillBlankInput, FillBlankResult>) {
+  const language = useLanguage()
   const [answer, setAnswer] = useState(result?.answer ?? '')
   const parts = input.sentence_template.split('___')
 
   const handleSubmit = () => {
     if (!answer.trim()) return
-    onSubmit({ answer: answer.trim() })
+    onSubmit({ answer: answer.trim(), ...gradeFillBlank(language, input, answer) })
   }
 
   const skipped = isSkipped(result)

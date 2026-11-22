@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@fluid/ui'
 import { isSkipped } from '@fluid/ui'
+import { gradeChoice } from '@/lang-app/grading/grade'
+import type { ChoiceGraded } from '@/lang-app/grading/grade'
 
 interface MultipleChoiceInput {
   question: string
@@ -11,7 +13,7 @@ interface MultipleChoiceInput {
   explanation?: string
 }
 
-interface MultipleChoiceResult {
+interface MultipleChoiceResult extends Partial<ChoiceGraded> {
   selected_index: number
 }
 
@@ -26,7 +28,7 @@ export function MultipleChoice({
   const handleSelect = (idx: number) => {
     if (submitted) return
     setSelected(idx)
-    onSubmit({ selected_index: idx })
+    onSubmit({ selected_index: idx, ...gradeChoice(input, idx) })
   }
 
   const getOptionClass = (idx: number) => {

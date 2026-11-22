@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@fluid/ui'
 import { isSkipped } from '@fluid/ui'
+import { gradeTranslation } from '@/lang-app/grading/grade'
+import type { Graded } from '@/lang-app/grading/grade'
+import { useLanguage } from '@/lang-app/grading/LanguageContext'
 
 interface TranslationInput {
   prompt: string
@@ -11,11 +14,12 @@ interface TranslationInput {
   acceptable_answers?: string[]
 }
 
-interface TranslationResult {
+interface TranslationResult extends Partial<Graded> {
   answer: string
 }
 
 export function TranslationChallenge({ input, submitted, result, onSubmit }: ExerciseComponentProps<TranslationInput, TranslationResult>) {
+  const language = useLanguage()
   const [answer, setAnswer] = useState(result?.answer ?? '')
   const skipped = isSkipped(result)
 
@@ -43,7 +47,7 @@ export function TranslationChallenge({ input, submitted, result, onSubmit }: Exe
         <div className="translation-result result-submitted">{result?.answer ?? answer}</div>
       )}
       {!submitted && (
-        <button className="btn-primary" onClick={() => onSubmit({ answer: answer.trim() })} disabled={!answer.trim()}>
+        <button className="btn-primary" onClick={() => onSubmit({ answer: answer.trim(), ...gradeTranslation(language, input, answer) })} disabled={!answer.trim()}>
           Check
         </button>
       )}
