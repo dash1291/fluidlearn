@@ -64,6 +64,32 @@ button {
   background: var(--color-card);
 }
 
+.summary-note {
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+  color: var(--color-muted, #888);
+  font-size: 0.8rem;
+  padding: 4px 0;
+}
+
+.summary-note-label {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.summary-note details {
+  margin-top: 6px;
+  text-align: left;
+}
+
+.summary-note summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
 /* ---- Messages ---- */
 
 .message-row {
