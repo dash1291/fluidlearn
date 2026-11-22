@@ -4,6 +4,8 @@ import { useMemo, useEffect, useCallback } from 'react'
 import { AgentView } from '@fluid/ui'
 import { languageComponentRegistry } from '@/lang-app/tools/registry'
 import { LanguageMemoryStore } from '@/lang-app/memory/store'
+import { formatExerciseResult } from '@/lang-app/grading/resultText'
+import { LanguageProvider } from '@/lang-app/grading/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { lsSet } from '@fluid/ui'
 import { StudyTimer } from './StudyTimer'
@@ -112,6 +114,7 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
         plan: memoryStore.getPlan(),
       }),
       startTrigger: '__lesson_start__',
+      formatResult: formatExerciseResult,
       onToolCall: (toolName: string, input: Record<string, unknown>) => {
         if (toolName === 'show_vocabulary' && Array.isArray(input.words)) {
           memoryStore.recordVocabulary(
@@ -213,16 +216,18 @@ export function LearnClient({ language, languageName, initialMessages, initialMe
   )
 
   return (
-    <AgentView
-      agentConfig={agentConfig}
-      registry={languageComponentRegistry}
-      placeholder={`Message your ${languageName} tutor...`}
-      toolbarRight={
-        <>
-          <VocabularyPanel store={memoryStore} languageName={languageName} />
-          <StudyTimer initialTotalSeconds={initialTotalSeconds} />
-        </>
-      }
-    />
+    <LanguageProvider value={language}>
+      <AgentView
+        agentConfig={agentConfig}
+        registry={languageComponentRegistry}
+        placeholder={`Message your ${languageName} tutor...`}
+        toolbarRight={
+          <>
+            <VocabularyPanel store={memoryStore} languageName={languageName} />
+            <StudyTimer initialTotalSeconds={initialTotalSeconds} />
+          </>
+        }
+      />
+    </LanguageProvider>
   )
 }

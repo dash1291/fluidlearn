@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import type { ExerciseComponentProps } from '@fluid/ui'
 import { isSkipped } from '@fluid/ui'
+import { gradeArrange } from '@/lang-app/grading/grade'
+import type { ArrangeGraded } from '@/lang-app/grading/grade'
 
 interface ArrangeInput {
   words: string[]
@@ -10,9 +12,7 @@ interface ArrangeInput {
   translation?: string
 }
 
-interface ArrangeResult {
-  order: string[]
-}
+type ArrangeResult = { order: string[] } & Partial<ArrangeGraded>
 
 export function SentenceArrange({ input, submitted, result, onSubmit }: ExerciseComponentProps<ArrangeInput, ArrangeResult>) {
   const [available, setAvailable] = useState(() => [...input.words])
@@ -31,7 +31,7 @@ export function SentenceArrange({ input, submitted, result, onSubmit }: Exercise
   }
 
   const handleSubmit = () => {
-    onSubmit({ order: arranged })
+    onSubmit({ order: arranged, ...gradeArrange(input, arranged) })
   }
 
   const skipped = isSkipped(result)
